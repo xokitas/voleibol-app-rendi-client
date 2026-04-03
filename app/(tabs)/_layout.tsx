@@ -1,71 +1,36 @@
-import React from 'react';
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-        }}
-      />
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarActiveTintColor: '#003366',
+      tabBarInactiveTintColor: '#94A3B8',
+      tabBarStyle: {
+        display: 'none',
+        backgroundColor: '#F8F8FF',
+        height: 60,
+        paddingBottom: 8,
+      },
+    }}>
+      {/* Pestaña Principal: El Menú de Acciones */}
+      <Tabs.Screen name="menu" options={{ 
+        title: 'Menú', 
+        tabBarIcon: ({color}) => <Ionicons name="grid" size={24} color={color} /> 
+      }} />
+      
+      {/* Pestaña de Resultados Directos */}
+      <Tabs.Screen name="results" options={{ 
+        title: 'Resultados', 
+        tabBarIcon: ({color}) => <Ionicons name="stats-chart" size={24} color={color} /> 
+      }} />
+
+      {/* Pestaña de Carga */}
+      <Tabs.Screen name="load" options={{ 
+        title: 'Cargar', 
+        tabBarIcon: ({color}) => <Ionicons name="cloud-download" size={24} color={color} /> 
+      }} />
     </Tabs>
   );
 }
