@@ -8,6 +8,39 @@ import QuickNav from '../../../components/QuickNav';
 import UserMenu from '../../../components/UserMenu';
 import tw from '../../../lib/tailwind';
 
+//Traductor para el backend
+
+const MESO_MAP = {
+  'Entrante': 'ENT', 'Básico': 'BAS', 'Básico desarrollador': 'BDE',
+  'Básico estabilizador': 'BES', 'Preparatorio de control': 'PRE_CON',
+  'Precompetitivo': 'PRE_COM', 'Competitivo': 'COM',
+  'De restablecimiento mantenedor': 'RES_MAN',
+  'Preparatorio de restablecimiento': 'PRE_RES',
+  'Preparatorio de mantenimiento': 'PRE_MAN'
+};
+
+const MICRO_MAP = {
+  'Ordinario': 'ORD', 'De choque intensivo': 'CHO',
+  'De aproximación': 'APR', 'Competitivo': 'COM',
+  'De recuperación o restablecimiento': 'REC'
+};
+
+const WEEK_MAP = {
+  'Lunes': 'LUN', 'Martes': 'MAR', 'Miércoles': 'MIE', 
+  'Jueves': 'JUE', 'Viernes': 'VIE', 'Sábado': 'SAB', 'Domingo': 'DOM'
+};
+
+const POSITION_OPTIONS = [
+  { label: 'Bloqueador', value: 'B' },
+  { label: 'Defensor', value: 'D' }
+];
+
+const ZONE_OPTIONS = [
+  { label: 'Izquierda', value: 'IZQ' },
+  { label: 'Centro', value: 'CEN' },
+  { label: 'Derecha', value: 'DER' }
+];
+
 // --- 1. COMPONENTE PARA FILAS ---
 const FormRow = ({ children, zIndex }: { children: React.ReactNode, zIndex?: number }) => (
   <View style={[tw`flex-row gap-3 mb-4`, { zIndex: zIndex || 1, elevation: zIndex || 1 }]}>
@@ -35,35 +68,51 @@ const SmartInput = ({ label, value, onChangeText, keyboardType = 'default' }: an
 };
 
 // --- 3. SELECTOR ESTILIZADO (Sustituye al Picker feo) ---
-const SmartSelect = ({ label, options, value, onSelect }: any) => {
+const SmartSelect = ({ label, options, value, onSelect, isOpen, setIsOpen, isMini }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
-  const [open, setOpen] = useState(false);
+
+
 
   return (
     <View style={{ flex: 1, zIndex: 100 }}> 
       <TouchableOpacity 
-        onPress={() => setOpen(!open)}
+        onPress={() => setIsOpen(!isOpen ? (label || value) : null)} 
         activeOpacity={0.8}
-        style={tw`flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+        style={tw`${isMini ? 'h-9 border-slate-200 px-1' : 'h-12 border-slate-300 px-3'} flex-row items-center border rounded-lg bg-slate-50`}
       >
-        {isPC && <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>{label}:</Text>}
-        <Text style={tw`text-slate-700 text-sm flex-1`}>{value || (isPC ? "Seleccionar" : label)}</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color="#003366" />
+        {/* MODIFICACIÓN: Si es mini, NO renderizamos el label ni los puntos */}
+        {isPC && !isMini && label !== "" && (
+          <Text style={tw`font-bold text-[#003366] text-xs mr-1 uppercase`}>{label}:</Text>
+        )}
+
+        <Text 
+          style={tw`text-slate-700 ${isMini ? 'text-[11px]' : 'text-sm'} flex-1 font-medium text-center`} 
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        
+        <Ionicons 
+          name={isOpen ? "chevron-up" : "chevron-down"} 
+          size={isMini ? 8 : 14} 
+          color="#003366" 
+        />
       </TouchableOpacity>
 
-      {open && (
+      {/* Menú desplegable */}
+      {isOpen && (
         <View style={[
           tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
-          { top: 50, zIndex: 999, elevation: 10 }
+          { top: isMini ? 34 : 50, zIndex: 9999, elevation: 10, minWidth: isMini ? 100 : 'auto' }
         ]}>
           {options.map((opt: string) => (
             <TouchableOpacity 
               key={opt} 
-              onPress={() => { onSelect(opt); setOpen(false); }}
-              style={tw`p-4 border-b border-slate-100 active:bg-slate-100`}
+              onPress={() => { onSelect(opt); setIsOpen(null); }} 
+              style={tw`${isMini ? 'p-2' : 'p-4'} border-b border-slate-100`}
             >
-              <Text style={tw`text-slate-700 text-sm font-medium`}>{opt}</Text>
+              <Text style={tw`text-slate-700 ${isMini ? 'text-[10px]' : 'text-sm'}`}>{opt}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -148,21 +197,49 @@ export default function RegisterDataScreen() {
   const { type } = useLocalSearchParams();
   const router = useRouter();
 
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     denomination: '', place: '', category: 'Juvenil', sex: 'Masculino',
-    date: new Date(),
-    start_time: new Date(),
-    objective: '',
-    meso: 'ENT', micro: 'ORD', micro_num: '1', week_day: 'LUN'
+    date: new Date(), start_time: new Date(), objective: '', 
+    meso: 'Entrante', micro: 'Ordinario', micro_num: '1', 
+    week_day: 'Lunes'
   });
 
   const updateForm = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
 
   const [teamA, setTeamA] = useState('Equipo A');
   const [teamB, setTeamB] = useState('Equipo B');
-  const initialPlayers = [{ number: '1', fullName: '', position: 'B', zone: 'CEN' }, { number: '2', fullName: '', position: 'D', zone: 'CEN' }];
+  
+  const initialPlayers = [
+    { number: '1', fullName: '', position: 'B', zone: 'CEN' }, 
+    { number: '2', fullName: '', position: 'D', zone: 'CEN' }
+  ];
+  
   const [playersA, setPlayersA] = useState(initialPlayers);
   const [playersB, setPlayersB] = useState(initialPlayers);
+
+  const handleStartEvent = () => {
+    // 1. Preparamos el objeto maestro
+    const eventPayload = {
+      type, // 'oficial', 'entrenamiento', etc.
+      ...formData,
+      teamA: { name: teamA, players: playersA },
+      teamB: { name: teamB, players: playersB },
+      timestamp: new Date().toISOString()
+    };
+
+    // 2. Por ahora, lo vemos en consola para estar seguros de que todo viaja bien
+    console.log("--- DATOS DEL EVENTO LISTOS ---");
+    console.log(JSON.stringify(eventPayload, null, 2));
+
+    // 3. Navegamos a la pantalla de Juego (GameScreen) 
+    // Pasamos los datos. Nota: En Expo Router, para objetos grandes, 
+    // a veces es mejor usar un estado global o params serializados.
+    router.push({
+      pathname: "/game", // Crearemos esta ruta a continuación
+      params: { data: JSON.stringify(eventPayload) }
+    });
+  };
 
   const updatePlayer = (team: 'A' | 'B', index: number, field: string, value: string) => {
     const setter = team === 'A' ? setPlayersA : setPlayersB;
@@ -172,30 +249,27 @@ export default function RegisterDataScreen() {
     setter(players);
   };
 
-  return (
-    <SafeAreaView style={tw`flex-1 bg-white`} edges={['top']}>
-      
-      {/* BOTÓN ATRÁS ORIGINAL */}
-      <TouchableOpacity 
-        onPress={() => router.back()} 
-        style={tw`absolute top-4 left-4 z-50 bg-white p-2 rounded-full shadow-sm border border-slate-100 flex-row items-center px-3`}
-      >
-        <Ionicons name="chevron-back" size={20} color="#003366" />
-        <Text style={tw`text-[#003366] font-bold ml-1 text-xs uppercase`}>Menú</Text>
-      </TouchableOpacity>
-      
-      {/* COMPONENTES ORIGINALES */}
-      <UserMenu />
-      <QuickNav />
+  const addPlayer = (team: 'A' | 'B') => {
+    if (type !== 'entrenamiento') return; 
+    const setter = team === 'A' ? setPlayersA : setPlayersB;
+    const players = team === 'A' ? playersA : playersB;
+    setter([...players, { number: '', fullName: '', position: 'B', zone: 'CEN' }]);
+  };
 
-      {/* --- CONTENIDO DEL FORMULARIO --- */}
-      
-      <ScrollView contentContainerStyle={tw`p-5 pt-16 pb-20`} style={{ flex: 1 }}>
-        <Text style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}>
-          {type === 'oficial' ? 'Competencia Oficial' : `Control ${type}`}
-        </Text>
+  const removePlayer = (team: 'A' | 'B', index: number) => {
+    if (type !== 'entrenamiento') return; 
+    const setter = team === 'A' ? setPlayersA : setPlayersB;
+    const players = team === 'A' ? [...playersA] : [...playersB];
+    if (players.length > 1) {
+      players.splice(index, 1);
+      setter(players);
+    }
+  };
 
-        {type === 'oficial' ? (
+  const renderSpecificFields = () => {
+    switch (type) {
+      case 'oficial':
+        return (
           <>
             <FormRow zIndex={50}>
               <SmartInput label="Denominación" value={formData.denomination} onChangeText={(v:any) => updateForm('denomination', v)} />
@@ -206,67 +280,249 @@ export default function RegisterDataScreen() {
               <SmartInput label="Lugar" value={formData.place} onChangeText={(v:any) => updateForm('place', v)} />
             </FormRow>
           </>
-        ) : (
+        );
+      case 'interno':
+      case 'externo':
+        return (
           <>
-            <FormRow zIndex={50}>
-              <SmartInput label="Mesociclo" value={formData.meso} onChangeText={(v:any) => updateForm('meso', v)} />
-              <SmartInput label="Microciclo" value={formData.micro} onChangeText={(v:any) => updateForm('micro', v)} />
+            <FormRow zIndex={70}>
+              <SmartSelect label="Mesociclo" options={Object.keys(MESO_MAP)} value={formData.meso} onSelect={(v:any) => updateForm('meso', v)} isOpen={openMenu === 'Mesociclo'} setIsOpen={setOpenMenu} />
+              <SmartDateTime label="Fecha" mode="date" value={formData.date} onChange={(v:any) => updateForm('date', v)} />
             </FormRow>
-            <FormRow zIndex={40}>
+            <FormRow zIndex={60}>
+              <SmartSelect label="Microciclo" options={Object.keys(MICRO_MAP)} value={formData.micro} onSelect={(v:any) => updateForm('micro', v)} isOpen={openMenu === 'Microciclo'} setIsOpen={setOpenMenu} />
+              <SmartSelect label="Día" options={Object.keys(WEEK_MAP)} value={formData.week_day} onSelect={(v:any) => updateForm('week_day', v)} isOpen={openMenu === 'Día'} setIsOpen={setOpenMenu} />
+            </FormRow>
+            <FormRow zIndex={50}>
+              <SmartInput label="No. Micro" value={formData.micro_num} keyboardType="numeric" onChangeText={(v:any) => updateForm('micro_num', v)} />
+              <SmartInput label="Lugar" value={formData.place} onChangeText={(v:any) => updateForm('place', v)} />
+            </FormRow>
+          </>
+        );
+      case 'entrenamiento':
+        return (
+          <>
+            <FormRow zIndex={70}>
+              <SmartSelect label="Mesociclo" options={Object.keys(MESO_MAP)} value={formData.meso} onSelect={(v:any) => updateForm('meso', v)} isOpen={openMenu === 'Mesociclo'} setIsOpen={setOpenMenu} />
+              <SmartDateTime label="Fecha" mode="date" value={formData.date} onChange={(v:any) => updateForm('date', v)} />
+            </FormRow>
+            <FormRow zIndex={60}>
+              <SmartSelect label="Microciclo" options={Object.keys(MICRO_MAP)} value={formData.micro} onSelect={(v:any) => updateForm('micro', v)} isOpen={openMenu === 'Microciclo'} setIsOpen={setOpenMenu} />
+              <SmartSelect label="Día" options={Object.keys(WEEK_MAP)} value={formData.week_day} onSelect={(v:any) => updateForm('week_day', v)} isOpen={openMenu === 'Día'} setIsOpen={setOpenMenu} />
+            </FormRow>
+            <FormRow zIndex={50}>
               <SmartInput label="No. Micro" value={formData.micro_num} keyboardType="numeric" onChangeText={(v:any) => updateForm('micro_num', v)} />
               <SmartInput label="Objetivo" value={formData.objective} onChangeText={(v:any) => updateForm('objective', v)} />
             </FormRow>
           </>
-        )}
+        );
+      default: return null;
+    }
+  };
 
+  return (
+    <SafeAreaView style={tw`flex-1 bg-white`} edges={['top']}>
+      <TouchableOpacity 
+        onPress={() => router.back()} 
+        style={tw`absolute top-4 left-4 z-50 bg-white p-2 rounded-full shadow-sm border border-slate-100 flex-row items-center px-3`}
+      >
+        <Ionicons name="chevron-back" size={20} color="#003366" />
+        <Text style={tw`text-[#003366] font-bold ml-1 text-xs uppercase`}>Menú</Text>
+      </TouchableOpacity>
+      
+      <UserMenu />
+      <QuickNav />
+
+      <ScrollView contentContainerStyle={tw`p-5 pt-16 pb-20`} style={{ flex: 1 }}>
+        <Text style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}>
+          {type === 'oficial' ? 'Competencia Oficial' : 
+           type === 'interno' ? 'Juego de Control Interno' :
+           type === 'externo' ? 'Juego de Control Externo' : 
+           'Sesión de Entrenamiento'}
+        </Text>
+
+        {/* 1. Campos dinámicos según tipo */}
+        {renderSpecificFields()}
+
+        {/* 2. Categoría y Sexo (Comunes) */}
         <FormRow zIndex={30}>
-          <SmartSelect label="Categoría" options={['Escolar', 'Juvenil', 'Mayores']} value={formData.category} onSelect={(v:any) => updateForm('category', v)} />
-          <SmartSelect label="Sexo" options={['Masculino', 'Femenino']} value={formData.sex} onSelect={(v:any) => updateForm('sex', v)} />
+          <SmartSelect label="Categoría" options={['Escolar', 'Juvenil', 'Mayores']} value={formData.category} onSelect={(v:any) => updateForm('category', v)} isOpen={openMenu === 'Categoría'} setIsOpen={setOpenMenu} />
+          <SmartSelect label="Sexo" options={['Masculino', 'Femenino']} value={formData.sex} onSelect={(v:any) => updateForm('sex', v)} isOpen={openMenu === 'Sexo'} setIsOpen={setOpenMenu} />
         </FormRow>
 
-        {/* --- SECCIÓN EQUIPOS --- */}
+        {/* --- SECCIÓN DE PARTICIPANTES (EQUIPO A VS EQUIPO B) --- */}
         <View style={tw`flex-row items-center gap-3 my-4`}>
-          <TextInput style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold`} placeholder="Equipo A" value={teamA} onChangeText={setTeamA} />
+          <TextInput 
+            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold`} 
+            placeholder="Equipo A" 
+            value={teamA} 
+            onChangeText={setTeamA} 
+          />
           <Text style={tw`font-black text-lg`}>VS</Text>
-          <TextInput style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold text-right`} placeholder="Equipo B" value={teamB} onChangeText={setTeamB} />
+          <TextInput 
+            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold text-right`} 
+            placeholder="Equipo B" 
+            value={teamB} 
+            onChangeText={setTeamB} 
+          />
         </View>
 
-        {/* --- TABLAS DE JUGADORES --- */}
-        <Text style={tw`text-[#003366] font-bold mb-2`}>Jugadores {teamA}</Text>
-        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
-          <Text style={tw`w-10 font-bold text-[10px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[10px] ml-2`}>Nombre y Apellidos</Text>
-          <Text style={tw`w-16 font-bold text-[10px] text-center`}>Pos.</Text>
-          <Text style={tw`w-16 font-bold text-[10px] text-center`}>Zona</Text>
+        {/* --- TABLA EQUIPO A --- */}
+        <View style={tw`flex-row justify-between items-center mb-2`}>
+          <Text style={tw`text-[#003366] font-bold`}>Jugadores {teamA}</Text>
+          {type === 'entrenamiento' && (
+            <TouchableOpacity onPress={() => addPlayer('A')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
+              <Ionicons name="add-circle" size={16} color="#003366" />
+              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>Añadir</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Header Tabla Equipo A */}
+        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
+          <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
+          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>Nombre y Apellidos</Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Posición</Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
+          {type === 'entrenamiento' && <Text style={tw`w-8`}></Text>}
+        </View>
+
         {playersA.map((p, i) => (
-          <View key={i} style={tw`flex-row border-x border-b border-slate-200 p-1 bg-white`}>
-            <TextInput style={tw`w-10 text-center border border-slate-100 rounded`} value={p.number} onChangeText={(v) => updatePlayer('A', i, 'number', v)} />
-            <TextInput style={tw`flex-1 ml-2 border border-slate-100 rounded px-2`} placeholder="Nombre..." value={p.fullName} onChangeText={(v) => updatePlayer('A', i, 'fullName', v)} />
-            <TextInput style={tw`w-16 text-center border border-slate-100 rounded mx-1`} value={p.position} onChangeText={(v) => updatePlayer('A', i, 'position', v)} />
-            <TextInput style={tw`w-16 text-center border border-slate-100 rounded`} value={p.zone} onChangeText={(v) => updatePlayer('A', i, 'zone', v)} />
+          <View key={`A-${i}`} style={[tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`, { zIndex: 100 - i }]}>
+            <TextInput 
+              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`} 
+              value={p.number} 
+              keyboardType="numeric"
+              onChangeText={(v) => updatePlayer('A', i, 'number', v)} 
+            />
+            <TextInput 
+              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`} 
+              placeholder="Nombre..." 
+              value={p.fullName} 
+              onChangeText={(v) => updatePlayer('A', i, 'fullName', v)} 
+            />
+            
+            {/* Selector de Posición Equipo A */}
+            <View style={tw`w-24 px-1`}>
+              <SmartSelect 
+                label="" 
+                options={POSITION_OPTIONS.map(o => o.label)} 
+                value={POSITION_OPTIONS.find(o => o.value === p.position)?.label || 'Pos.'}
+                onSelect={(label: string) => updatePlayer('A', i, 'position', POSITION_OPTIONS.find(o => o.label === label)?.value || 'B')}
+                isOpen={openMenu === `A-pos-${i}`}
+                setIsOpen={() => setOpenMenu(openMenu === `A-pos-${i}` ? null : `A-pos-${i}`)}
+                isMini 
+              />
+            </View>
+
+            {/* Selector de Zona Equipo A */}
+            <View style={tw`w-24 px-1`}>
+              <SmartSelect 
+                label="" 
+                options={ZONE_OPTIONS.map(o => o.label)} 
+                value={ZONE_OPTIONS.find(o => o.value === p.zone)?.label || 'Zona'}
+                onSelect={(label: string) => updatePlayer('A', i, 'zone', ZONE_OPTIONS.find(o => o.label === label)?.value || 'CEN')}
+                isOpen={openMenu === `A-zone-${i}`}
+                setIsOpen={() => setOpenMenu(openMenu === `A-zone-${i}` ? null : `A-zone-${i}`)}
+                isMini
+              />
+            </View>
+
+            {type === 'entrenamiento' && (
+              <TouchableOpacity onPress={() => removePlayer('A', i)} style={tw`w-8 items-center`}>
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         ))}
 
-        <Text style={tw`text-[#003366] font-bold mt-6 mb-2`}>Jugadores {teamB}</Text>
-        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
-          <Text style={tw`w-10 font-bold text-[10px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[10px] ml-2`}>Nombre y Apellidos</Text>
-          <Text style={tw`w-16 font-bold text-[10px] text-center`}>Pos.</Text>
-          <Text style={tw`w-16 font-bold text-[10px] text-center`}>Zona</Text>
+        {/* --- TABLA EQUIPO B --- */}
+        <View style={tw`flex-row justify-between items-center mt-8 mb-2`}>
+          <Text style={tw`text-[#003366] font-bold`}>Jugadores {teamB}</Text>
+          {type === 'entrenamiento' && (
+            <TouchableOpacity onPress={() => addPlayer('B')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
+              <Ionicons name="add-circle" size={16} color="#003366" />
+              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>Añadir</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Header Tabla Equipo B */}
+        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
+          <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
+          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>Nombre y Apellidos</Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Posición</Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
+          {type === 'entrenamiento' && <Text style={tw`w-8`}></Text>}
+        </View>
+
         {playersB.map((p, i) => (
-          <View key={i} style={tw`flex-row border-x border-b border-slate-200 p-1 bg-white`}>
-            <TextInput style={tw`w-10 text-center border border-slate-100 rounded`} value={p.number} onChangeText={(v) => updatePlayer('B', i, 'number', v)} />
-            <TextInput style={tw`flex-1 ml-2 border border-slate-100 rounded px-2`} placeholder="Nombre..." value={p.fullName} onChangeText={(v) => updatePlayer('B', i, 'fullName', v)} />
-            <TextInput style={tw`w-16 text-center border border-slate-100 rounded mx-1`} value={p.position} onChangeText={(v) => updatePlayer('B', i, 'position', v)} />
-            <TextInput style={tw`w-16 text-center border border-slate-100 rounded`} value={p.zone} onChangeText={(v) => updatePlayer('B', i, 'zone', v)} />
+          <View key={`B-${i}`} style={[tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`, { zIndex: 50 - i }]}>
+            <TextInput 
+              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`} 
+              value={p.number} 
+              keyboardType="numeric"
+              onChangeText={(v) => updatePlayer('B', i, 'number', v)} 
+            />
+            <TextInput 
+              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`} 
+              placeholder="Nombre..." 
+              value={p.fullName} 
+              onChangeText={(v) => updatePlayer('B', i, 'fullName', v)} 
+            />
+            
+            {/* Selector de Posición Equipo B */}
+            <View style={tw`w-24 px-1`}>
+              <SmartSelect 
+                label="" 
+                options={POSITION_OPTIONS.map(o => o.label)} 
+                value={POSITION_OPTIONS.find(o => o.value === p.position)?.label || 'Pos.'}
+                onSelect={(label: string) => updatePlayer('B', i, 'position', POSITION_OPTIONS.find(o => o.label === label)?.value || 'B')}
+                isOpen={openMenu === `B-pos-${i}`}
+                setIsOpen={() => setOpenMenu(openMenu === `B-pos-${i}` ? null : `B-pos-${i}`)}
+                isMini
+              />
+            </View>
+
+            {/* Selector de Zona Equipo B */}
+            <View style={tw`w-24 px-1`}>
+              <SmartSelect 
+                label="" 
+                options={ZONE_OPTIONS.map(o => o.label)} 
+                value={ZONE_OPTIONS.find(o => o.value === p.zone)?.label || 'Zona'}
+                onSelect={(label: string) => updatePlayer('B', i, 'zone', ZONE_OPTIONS.find(o => o.label === label)?.value || 'CEN')}
+                isOpen={openMenu === `B-zone-${i}`}
+                setIsOpen={() => setOpenMenu(openMenu === `B-zone-${i}` ? null : `B-zone-${i}`)}
+                isMini
+              />
+            </View>
+
+            {type === 'entrenamiento' && (
+              <TouchableOpacity onPress={() => removePlayer('B', i)} style={tw`w-8 items-center`}>
+                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+              </TouchableOpacity>
+            )}
           </View>
         ))}
 
-        <TouchableOpacity style={tw`bg-[#003366] p-4 rounded-xl mt-10 items-center`} onPress={() => router.push('/GameScreen' as any)}>
-          <Text style={tw`text-white font-bold text-lg uppercase`}>SIGUIENTE</Text>
-        </TouchableOpacity>
+      {/* --- BOTÓN DE ACCIÓN FINAL --- */}
+      <View style={tw`mt-10 mb-10`}>
+          <TouchableOpacity 
+            onPress={handleStartEvent}
+            activeOpacity={0.8}
+            style={tw`bg-[#003366] py-4 rounded-2xl shadow-lg flex-row justify-center items-center`}
+          >
+            <Ionicons name="play-circle" size={24} color="white" />
+            <Text style={tw`text-white font-black text-lg ml-2 uppercase tracking-tighter`}>
+              Comenzar Registro de Evento
+            </Text>
+          </TouchableOpacity>
+          
+          <Text style={tw`text-slate-400 text-[10px] text-center mt-2 uppercase`}>
+            Al continuar, se confirmarán las nóminas de ambos equipos.
+          </Text>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
