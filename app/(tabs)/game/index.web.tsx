@@ -41,9 +41,9 @@ export default function GameScreenWeb() {
 
   const sections = [
     { title: 'SERVICIO', subs: ['BAJ', 'FLO', 'SAL', 'SAF'], color: 'bg-cyan-50' },
-    { title: 'RECEPCIÓN', subs: ['2ma', 'Ppm', 'P2a', 'P2b'], color: 'bg-green-50' },
-    { title: 'ACOMODADA', subs: ['Rm', 'Rca'], color: 'bg-purple-50' },
-    { title: 'ATAQUE', subs: ['Ub', 'Tr', 'Acd', 'Rdjn', 'Rdpmp', 'Rd'], color: 'bg-yellow-50' },
+    { title: 'RECEPCIÓN', subs: ['2ma', 'Ppm'], color: 'bg-green-50' },
+    { title: 'ACOMODADA', subs: ['P2a', 'P2b'], color: 'bg-purple-50' },
+    { title: 'ATAQUE', subs: ['Rm', 'Rca','Ub', 'Tr', 'Acd', 'Rdjn', 'Rdpmp', 'Rd'], color: 'bg-yellow-50' },
     { title: 'BLOQUEO', subs: ['Bl', 'Bd', 'Bn'], color: 'bg-red-50' },
     { title: 'DEFENSA', subs: ['Dd', 'Dltd', 'Ld', 'Cc'], color: 'bg-indigo-50' },
     { title: 'E.N. FORZADOS', subs: ['Ens', 'Enr', 'Enp', 'Enm'], color: 'bg-orange-50' },
