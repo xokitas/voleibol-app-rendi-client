@@ -6,8 +6,8 @@ export const useGameTimers = () => {
   const [isRealTimeActive, setIsRealTimeActive] = useState(false);
   const [isTotalTimeActive, setIsTotalTimeActive] = useState(false);
 
-  const totalIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const realIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const totalIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const realIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startTotalTime = () => setIsTotalTimeActive(true);
   const stopTotalTime = () => setIsTotalTimeActive(false);

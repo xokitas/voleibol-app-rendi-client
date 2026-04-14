@@ -112,13 +112,15 @@ export default function GameScreenWeb() {
 
   // Efecto de parpadeo para cambio de cancha
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (mustSwitchSide) {
       interval = setInterval(() => setBlink(b => !b), 500);
     } else {
       setBlink(false);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [mustSwitchSide]);
 
   // Iniciar tiempo total al montar
