@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, Pressable, ScrollView } from 'react-native';
-import tw from '../../../lib/tailwind';
-import { useScoutingLogic } from '../../hooks/useScoutingLogic';
-import { useGameTimers } from '../../hooks/useGameTimers';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import HeaderMenu from '../../../components/HeaderMenu';
 import { SUBACTIONS_METADATA } from '../../../constants/volleyball';
+import { useGameTimers } from '../../../hooks/useGameTimers';
+import { useScoutingLogic } from '../../../hooks/useScoutingLogic';
+import tw from '../../../lib/tailwind';
 
 // --- COMPONENTES AUXILIARES ---
 
@@ -98,7 +99,8 @@ export default function GameScreenWeb() {
 
   const {
     score, sets, wind, mustSwitchSide,
-    canPerformAction, addActionToRally, commitPoint
+    canPerformAction, addActionToRally, commitPoint,
+    clearRally
   } = useScoutingLogic();
 
   const timers = useGameTimers();
@@ -176,7 +178,53 @@ export default function GameScreenWeb() {
 
   const zones = ['1', '6', '5', '2', '3', '4']; // Zonas estándar de voleibol
 
+  const handleExit = (targetRoute?: string) => {
+    const mensaje = "¿Deseas guardar los cambios antes de salir?";
+    
+    // window.confirm es la forma nativa de los navegadores para mostrar alertas de SI/NO
+    const deseaGuardar = window.confirm(mensaje);
+  
+    if (deseaGuardar) {
+      // --- LÓGICA SI EL USUARIO DICE "SÍ" ---
+      console.log("Guardando datos en la nube...");
+      // Aquí irá tu lógica de Firebase/API
+      
+      if (typeof targetRoute === 'string') {
+        router.replace(targetRoute as any);
+      } else {
+        router.replace('/(tabs)/menu');
+      }
+    } else {
+      // --- LÓGICA SI EL USUARIO DICE "NO" (O CANCELA) ---
+      // En la web, si el usuario cancela el confirm, decidimos si limpiar y salir
+      const realmenteSalir = window.confirm("¿Seguro que quieres salir sin guardar? Se perderán los datos del rally actual.");
+      
+      if (realmenteSalir) {
+        clearRally();
+        if (typeof targetRoute === 'string') {
+          router.replace(targetRoute as any);
+        } else {
+          // Si no hay historial previo (entró directo por URL), router.back() fallará.
+          // Es mejor asegurar el regreso al Registro o Menú.
+          router.replace('/(tabs)/menu');
+        }
+      }
+    }
+  };
+
   return (
+
+  <View style={tw`flex-1 bg-slate-900`}>
+    {/* --- HEADER PERMANENTE --- */}
+      <HeaderMenu 
+        dark={true} 
+        title="PANEL DE JUEGO"
+        onBack={() => handleExit()} // Reemplazamos el back por un replace para evitar volver a esta pantalla al salir del menú
+        showQuickNav={true}
+        
+      />
+
+    {/* --- CONTENIDO DE JULES (Empieza aquí) --- */}
     <View style={tw`flex-1 bg-slate-900 flex-row overflow-hidden`}>
       <LegendPanel hoveredAction={hoveredAction} />
 
@@ -316,5 +364,6 @@ export default function GameScreenWeb() {
         </View>
       </View>
     </View>
-  );
+  </View>
+);
 }

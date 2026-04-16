@@ -4,8 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import QuickNav from '../../../components/QuickNav';
-import UserMenu from '../../../components/UserMenu';
+import HeaderMenu from '../../../components/HeaderMenu';
 import tw from '../../../lib/tailwind';
 
 //Traductor para el backend
@@ -322,16 +321,16 @@ export default function RegisterDataScreen() {
 
   return (
     <SafeAreaView style={tw`flex-1 bg-white`} edges={['top']}>
-      <TouchableOpacity 
-        onPress={() => router.back()} 
-        style={tw`absolute top-4 left-4 z-50 bg-white p-2 rounded-full shadow-sm border border-slate-100 flex-row items-center px-3`}
-      >
-        <Ionicons name="chevron-back" size={20} color="#003366" />
-        <Text style={tw`text-[#003366] font-bold ml-1 text-xs uppercase`}>Menú</Text>
-      </TouchableOpacity>
-      
-      <UserMenu />
-      <QuickNav />
+      {/* REEMPLAZO DEL HEADER MANUAL:
+          - dark={false} para que los iconos sean azules/oscuros sobre fondo blanco.
+          - showQuickNav={true} para tener el menú de hamburguesa a la derecha.
+      */}
+      <HeaderMenu 
+        title="REGISTRO"
+        dark={false}
+        showQuickNav={true}
+        onBack={() => router.replace('/(tabs)/menu')}
+      />
 
       <ScrollView contentContainerStyle={tw`p-5 pt-16 pb-20`} style={{ flex: 1 }}>
         <Text style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}>

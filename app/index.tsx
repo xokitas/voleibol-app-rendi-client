@@ -30,7 +30,7 @@ export default function WelcomeScreen() {
           <TouchableOpacity 
             activeOpacity={0.8}
             style={styles.primaryButton} 
-            onPress={() => router.replace('/(tabs)/menu')} 
+            onPress={() => router.push('/(tabs)/menu')} 
           >
             <Text style={styles.primaryButtonText}>Empezar a Anotar</Text>
           </TouchableOpacity>

@@ -4,9 +4,17 @@ import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import tw from '../lib/tailwind';
 
+// 1. Definimos la interfaz para aceptar la prop 'dark'
+interface UserMenuProps {
+  dark?: boolean;
+}
 
-export default function UserMenu() {
+export default function UserMenu({ dark = false }: UserMenuProps) {
   const [isVisible, setIsVisible] = useState(false);
+  // 2. Colores dinámicos para el botón y el icono
+  const bgColor = dark ? 'bg-slate-800' : 'bg-white';
+  const borderColor = dark ? 'border-slate-700' : 'border-slate-200';
+  const iconColor = dark ? '#FFFFFF' : '#003366'; // Blanco en modo dark
 
   // Función para cerrar el menú y simular acción
   const handleLogin = () => {
@@ -17,12 +25,15 @@ export default function UserMenu() {
   return (
     <>
       {/* --- BOTÓN GATILLO (El que siempre se ve) --- */}
+      <View style={tw`relative z-50`}>
       <TouchableOpacity 
-        onPress={() => setIsVisible(true)}
-        style={styles.triggerBtn}
+        activeOpacity={0.7}
+        style={tw`flex-row items-center ${bgColor} p-2 px-3 rounded-xl border ${borderColor} shadow-sm`}
       >
-        <Ionicons name="person-circle-outline" size={32} color="#003366" />
+        {/* Cambiamos el color según la prop */}
+        <Ionicons name="person-circle-outline" size={24} color={iconColor} />
       </TouchableOpacity>
+    </View>
 
       {/* --- PANEL PLEGABLE (Modal) --- */}
       <Modal

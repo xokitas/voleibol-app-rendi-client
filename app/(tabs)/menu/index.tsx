@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // Necesario para navegar
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import UserMenu from '../../components/UserMenu';
-import tw from '../../lib/tailwind';
+import HeaderMenu from '../../../components/HeaderMenu';
+import tw from '../../../lib/tailwind';
 
 export default function MenuScreen() {
-  const router = useRouter(); // Instanciamos el router
+  const router = useRouter(); 
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
   const typeOptions = [
@@ -18,25 +18,14 @@ export default function MenuScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* El menú plegable de usuario (derecha) */}
-      <UserMenu />
-
-      {/* --- HEADER SUPERIOR (Atrás + Título) --- */}
-      <View style={styles.topBar}>
-        <TouchableOpacity 
-          onPress={() => router.replace('/')} // Volvemos a la raíz (Bienvenida)
-          activeOpacity={0.7}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#003366" />
-        </TouchableOpacity>
-        
-        <View>
-          <Text style={styles.topBarTitle}>Menú de Opciones</Text>
-          <View style={styles.accentLineSmall} />
-        </View>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* HEADER POTENCIADO: Toma el control del título y el botón de atrás */}
+      <HeaderMenu 
+        title="Menú de Opciones" 
+        onBack={() => router.replace('/')} // Función de tu flecha antigua
+        dark={false} 
+        showQuickNav={false} 
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Título de Bienvenida al Menú */}
@@ -98,23 +87,14 @@ export default function MenuScreen() {
 
 const styles = {
   container: tw`flex-1 bg-[#F8F8FF]`,
-  
-  // Estilos de la barra superior
-  topBar: tw`flex-row items-center px-6 pt-4 pb-2`,
-  backButton: tw`mr-4 p-1`,
-  topBarTitle: tw`text-base font-black text-[#003366] uppercase tracking-[0.1em]`,
-  accentLineSmall: tw`w-6 h-0.5 bg-[#FFCC00] mt-0.5`,
-
   scrollContent: tw`p-6 pt-4`,
   header: tw`mb-8`,
-  title: tw`text-2xl font-black text-slate-400 uppercase tracking-tighter`, // Un gris elegante para no competir con el header
-
+  title: tw`text-2xl font-black text-slate-400 uppercase tracking-tighter`, 
   mainRow: tw`flex-row justify-between gap-2 mb-8`,
   mainBtn: tw`bg-white border border-slate-200 p-4 rounded-2xl items-center flex-1 shadow-sm h-28 justify-center`,
   mainBtnActive: tw`bg-[#003366] border-[#003366] shadow-md`,
   mainBtnText: tw`text-[11px] font-black text-[#003366] mt-3 uppercase text-center leading-3`,
   textWhite: tw`text-white`,
-
   dropdownContainer: tw`bg-white rounded-3xl p-4 border border-slate-100 shadow-sm`,
   dropdownTitle: tw`text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-2`,
   dropItem: tw`flex-row items-center bg-slate-50 p-4 rounded-xl mb-2 border border-slate-100`,
