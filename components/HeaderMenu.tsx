@@ -27,7 +27,7 @@ export default function HeaderMenu({
   const bgColor = dark ? 'bg-slate-900 border-slate-800' : 'bg-[#F8F8FF] border-slate-200/50';
 
   return (
-    <View style={tw`flex-row items-center justify-between px-6 py-4 ${bgColor} border-b z-50`}>
+    <View style={tw`flex-row items-center justify-between px-6 py-4 ${bgColor} border-b z-50 w-full`}>
       
       {/* IZQUIERDA: Botón Atrás + Título */}
       <View style={tw`flex-1 flex-row items-center`}>

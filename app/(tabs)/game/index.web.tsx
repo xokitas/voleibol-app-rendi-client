@@ -180,33 +180,37 @@ export default function GameScreenWeb() {
 
   const handleExit = (targetRoute?: string) => {
     const mensaje = "¿Deseas guardar los cambios antes de salir?";
-    
-    // window.confirm es la forma nativa de los navegadores para mostrar alertas de SI/NO
+    const save = "Juego guardado";
     const deseaGuardar = window.confirm(mensaje);
   
     if (deseaGuardar) {
-      // --- LÓGICA SI EL USUARIO DICE "SÍ" ---
-      console.log("Guardando datos en la nube...");
-      // Aquí irá tu lógica de Firebase/API
-      
+      // --- GUARDADO LOCAL ---
+      // Guardamos un objeto con lo básico para saber que hay un juego.
+      // (Más adelante aquí puedes meter el 'score', 'sets', y el 'rally')
+      const gameData = {
+        inProgress: true,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem('rendi_active_game', JSON.stringify(gameData));
+      console.log("Juego guardado localmente en el navegador.");
+  
       if (typeof targetRoute === 'string') {
         router.replace(targetRoute as any);
       } else {
         router.replace('/(tabs)/menu');
       }
     } else {
-      // --- LÓGICA SI EL USUARIO DICE "NO" (O CANCELA) ---
-      // En la web, si el usuario cancela el confirm, decidimos si limpiar y salir
-      const realmenteSalir = window.confirm("¿Seguro que quieres salir sin guardar? Se perderán los datos del rally actual.");
+      const realmenteSalir = window.confirm("¿Seguro que quieres salir sin guardar? Se perderán los datos actuales.");
       
       if (realmenteSalir) {
-        clearRally();
+        clearRally(); // Tu función existente
+        // Borramos cualquier juego guardado anterior porque decidió no guardar
+        localStorage.removeItem('rendi_active_game'); 
+        
         if (typeof targetRoute === 'string') {
           router.replace(targetRoute as any);
         } else {
-          // Si no hay historial previo (entró directo por URL), router.back() fallará.
-          // Es mejor asegurar el regreso al Registro o Menú.
-          router.replace('/(tabs)/menu');
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/menu');
         }
       }
     }

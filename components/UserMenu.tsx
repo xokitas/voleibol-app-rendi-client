@@ -27,6 +27,7 @@ export default function UserMenu({ dark = false }: UserMenuProps) {
       {/* --- BOTÓN GATILLO (El que siempre se ve) --- */}
       <View style={tw`relative z-50`}>
       <TouchableOpacity 
+        onPress={() => setIsVisible(true)}
         activeOpacity={0.7}
         style={tw`flex-row items-center ${bgColor} p-2 px-3 rounded-xl border ${borderColor} shadow-sm`}
       >
