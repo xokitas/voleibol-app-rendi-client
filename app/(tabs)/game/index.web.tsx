@@ -235,10 +235,9 @@ export default function GameScreenWeb() {
         showQuickNav={true}
       />
 
-      {/* --- CONTENEDOR FLEX-ROW PARA SIDEBAR Y CONTENIDO --- */}
       <View style={tw`flex-1 flex-row overflow-hidden`}>
 
-        {/* --- SIDEBAR MANUAL DINÁMICO --- */}
+        {/*-- SIDEBAR MANUAL--*/}
         {isManualOpen && (
           <View style={tw`w-80 border-r border-slate-800 bg-slate-900 z-40`}>
             <ReferencePanel 
@@ -250,18 +249,10 @@ export default function GameScreenWeb() {
           </View>
         )}
 
-        {/* CONTENIDO PRINCIPAL */}
+        
         <View style={tw`flex-1 bg-slate-900 flex-col overflow-hidden relative`}>
-          
-          {/* BOTÓN PARA REABRIR EL MANUAL (Solo visible si está cerrado) */}
-          {!isManualOpen && (
-            <TouchableOpacity 
-              onPress={() => setIsManualOpen(true)}
-              style={tw`absolute left-4 top-4 z-50 bg-slate-800 p-2 rounded-full border border-slate-700 shadow-lg`}
-            >
-              <Ionicons name="book-outline" size={24} color="#eab308" />
-            </TouchableOpacity>
-          )}
+      
+        {/* CONTENIDO PRINCIPAL */}
 
           <View style={tw`flex-1 flex-col`}>
             {/* HEADER / MARCADOR */}
@@ -359,7 +350,7 @@ export default function GameScreenWeb() {
 
             {/* FOOTER: CRONÓMETROS Y CONTROL */}
             <View style={tw`h-24 bg-slate-800 border-t border-slate-700 flex-row items-center justify-between px-10`}>
-              <View style={tw`flex-row gap-8`}>
+              <View style={tw`flex-row items-center gap-10`}>
                 <View>
                   <Text style={tw`text-slate-500 font-black text-[10px] uppercase`}>Tiempo Total</Text>
                   <Text style={tw`text-slate-100 font-mono text-2xl font-bold`}>{timers.formattedTotalTime}</Text>
@@ -371,31 +362,43 @@ export default function GameScreenWeb() {
                   </View>
                   <Text style={[tw`font-mono text-2xl font-bold`, timers.isRealTimeActive ? tw`text-green-400` : tw`text-slate-400`]}>{timers.formattedRealTime}</Text>
                 </View>
+              {/* BOTÓN MANUAL FIJO - A LA DERECHA DEL CRONÓMETRO */}
+              <TouchableOpacity 
+                  onPress={() => setIsManualOpen(!isManualOpen)} 
+                  style={tw`flex-row items-center gap-3 px-6 py-3 rounded-2xl shadow-lg border-b-4 ${
+                    isManualOpen 
+                      ? 'bg-slate-700 border-slate-900' 
+                      : 'bg-yellow-500 border-yellow-700'
+                  }`}
+                >
+                  <Ionicons 
+                    name={isManualOpen ? "close-circle" : "book"} 
+                    size={20} 
+                    color={isManualOpen ? "white" : "black"} 
+                  />
+                  <Text style={tw`font-black text-xs uppercase ${isManualOpen ? 'text-white' : 'text-black'}`}>
+                    {isManualOpen ? 'Cerrar Manual' : 'Manual'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
+              {/* SECCIÓN DERECHA: Botones de Punto */}
               <View style={tw`flex-row gap-4`}>
-                <TouchableOpacity
-                  onPress={() => timers.isRealTimeActive ? timers.stopRealTime() : timers.startRealTime()}
-                  style={tw`bg-slate-700 px-6 py-3 rounded-xl border border-slate-600 flex-row items-center`}
-                >
-                  <Ionicons name={timers.isRealTimeActive ? 'pause' : 'play'} size={20} color="white" style={tw`mr-2`} />
-                  <Text style={tw`text-white font-black text-xs uppercase`}>{timers.isRealTimeActive ? 'Pausar Juego' : 'Reanudar Juego'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => commitPoint('A')}
-                  style={tw`bg-red-600 px-8 py-3 rounded-xl shadow-lg shadow-red-900/40`}
+                <TouchableOpacity 
+                  onPress={() => commitPoint('A')} 
+                  style={tw`bg-red-600 px-8 py-3 rounded-xl shadow-lg shadow-red-900/20`}
                 >
                   <Text style={tw`text-white font-black text-xs uppercase`}>Punto A</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => commitPoint('B')}
-                  style={tw`bg-blue-600 px-8 py-3 rounded-xl shadow-lg shadow-blue-900/40`}
+                <TouchableOpacity 
+                  onPress={() => commitPoint('B')} 
+                  style={tw`bg-blue-600 px-8 py-3 rounded-xl shadow-lg shadow-blue-900/20`}
                 >
                   <Text style={tw`text-white font-black text-xs uppercase`}>Punto B</Text>
                 </TouchableOpacity>
               </View>
+
             </View>
           </View>
         </View>

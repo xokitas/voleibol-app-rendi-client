@@ -90,7 +90,7 @@ export const SUBACTIONS_METADATA: Record<string, { name: string; description: st
   },
 
   // --- ATAQUE ---
-  Rm: { 
+  RM: { 
     name: 'Remate muy fuerte', 
     description: 'Ataque de máxima potencia.',
     criteria: {
