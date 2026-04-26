@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, Text, TouchableOpacity, View } from 'react-native';
 import HeaderMenu from '../../../components/HeaderMenu';
 import ReferencePanel from '../../../components/ReferencePanel';
 import { useGameTimers } from '../../../hooks/useGameTimers';
@@ -9,6 +9,19 @@ import { useScoutingLogic } from '../../../hooks/useScoutingLogic';
 import tw from '../../../lib/tailwind';
 
 // --- COMPONENTES AUXILIARES ---
+
+const categoryColors: Record<string, string> = {
+  SERVICIO: 'bg-[#93c5fd]',     // Azul claro
+  RECEPCION: 'bg-[#86efac]',    // Verde claro
+  ACOMODADA: 'bg-[#fbcfe8]',    // Rosadito
+  ATAQUE: 'bg-[#fde047]',       // Amarillo
+  BLOQUEO: 'bg-[#c084fc]',      // Morado
+  DEFENSA: 'bg-[#166534]',      // Verde oscuro (Texto blanco en este)
+  ERRORES_SERV: 'bg-[#4b5563]', // Grisáceo morado
+  ERRORES_COM: 'bg-[#4b5563]',  // Grisáceo morado
+  ERRORES_POS: 'bg-[#4b5563]',  // Grisáceo morado
+  ERRORES_TEC: 'bg-[#4b5563]',  // Grisáceo morado
+};
 
 const CourtZone = ({ label, team, active, onPress, isSelected }: {
   label: string;
@@ -150,40 +163,41 @@ export default function GameScreenWeb() {
     }
   };
 
-  const renderActionGroup = (title: string, category: string, color: string, subs: string[]) => (
-    <View style={tw`mb-6 ${!canPerformAction(category) ? 'opacity-20 pointer-events-none' : ''}`}>
-      <Text style={tw`text-slate-500 font-black text-[10px] uppercase mb-3`}>{title}</Text>
-      <View style={tw`flex-row flex-wrap gap-2`}>
-        {subs.map(sub => (
-          <View 
-            key={sub}
-            // @ts-ignore - Para que TS no llore con el hover en Web
-            onMouseEnter={() => setHoveredAction(sub)}
-            // @ts-ignore
-            onMouseLeave={() => setHoveredAction(null)}
-          >
+  const renderActionColumn = (title: string, category: string, subs: string[]) => {
+    const bgColor = categoryColors[category] || 'bg-slate-800';
+    // Si el fondo es muy oscuro (como Defensa o Errores), usamos texto blanco, si no, negro.
+    const textColor = 'text-white';
+  
+    return (
+      <View style={tw`flex-1 min-w-[35px] max-w-[85px] ${!canPerformAction(category) ? 'opacity-20' : ''}`}>
+        <Text style={tw`text-slate-500 font-black text-[9px] uppercase mb-2 text-center tracking-tighter`}>
+          {title}
+        </Text>
+        <View style={tw`flex-col gap-1.5`}>
+          {subs.map(sub => (
             <TouchableOpacity
+              key={sub}
               onPress={() => handleActionClick(category, sub)}
               disabled={!canPerformAction(category)}
               style={[
-                tw`px-4 py-3 rounded-xl border min-w-[70px] items-center`,
+                tw`py-2 rounded-lg border-b-2 items-center justify-center shadow-sm`,
                 pendingAction?.subAction === sub 
-                  ? tw`${color} border-white shadow-lg` 
-                  : tw`bg-slate-800 border-slate-700`
+                  ? [tw`border-white scale-105`, { backgroundColor: '#ffffff' }] 
+                  : [tw`border-black/10`, tw`${bgColor}`]
               ]}
             >
               <Text style={[
-                tw`font-black text-xs`, 
-                pendingAction?.subAction === sub ? tw`text-white` : tw`text-slate-400`
+                tw`font-black text-[12px] tracking-tight`, 
+                pendingAction?.subAction === sub ? tw`text-black` : tw`${textColor}`
               ]}>
                 {sub}
               </Text>
             </TouchableOpacity>
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const zones = ['1', '6', '5', '2', '3', '4']; // Zonas estándar de voleibol
 
@@ -289,64 +303,36 @@ export default function GameScreenWeb() {
             </View>
 
             {/* CONTENIDO PRINCIPAL: CANCHA Y BOTONES */}
-            <View style={tw`flex-1 flex-row p-8 gap-8`}>
-              {/* LADO IZQUIERDO: CANCHA TÁCTICA */}
-              <View style={tw`flex-1 bg-slate-800/50 rounded-3xl p-6 border border-slate-800`}>
-                <View style={tw`flex-row justify-between items-center mb-6`}>
-                  <Text style={tw`text-slate-100 font-black text-lg`}>Cancha Táctica</Text>
-                  <View style={tw`bg-slate-900 px-4 py-2 rounded-full border border-slate-700`}>
-                    <Text style={tw`text-yellow-400 font-black text-[10px] uppercase`}>
-                      {selectionStep === 0 ? 'Selecciona una acción' : selectionStep === 1 ? 'Punto de ORIGEN' : 'Punto de DESTINO'}
-                    </Text>
+            {/* ÁREA DE TRABAJO: CANCHA + 10 COLUMNAS DE ACCIÓN */}
+          <View style={tw`flex-1 flex-row p-3 gap-2`}>
+            
+            {/* CANCHA (Mínimo tamaño posible para dar prioridad a botones) */}
+            <View style={tw`w-48 bg-slate-900/50 rounded-2xl p-2 border border-slate-800 justify-center`}>
+               <View style={tw`flex-row h-40 w-full self-center`}> 
+                  <View style={tw`flex-1 border-r border-slate-700`}>
+                    <View style={tw`flex-row flex-wrap`}>{zones.map(z => <CourtZone key={`A-${z}`} label={`A${z}`} team="A" active={selectionStep > 0} isSelected={origin === `A${z}`} onPress={() => handleZoneClick(`A${z}`)} />)}</View>
                   </View>
-                </View>
-
-                <View style={tw`flex-1 flex-row`}>
-                  {/* Equipo A */}
-                  <View style={tw`flex-1 border-r-2 border-slate-700 pr-2`}>
-                    <View style={tw`flex-1 flex-row flex-wrap`}>
-                      {zones.map(z => (
-                        <View key={`A-${z}`} style={tw`w-1/3`}>
-                          <CourtZone
-                            label={`A${z}`}
-                            team="A"
-                            active={selectionStep > 0}
-                            isSelected={origin === `A${z}`}
-                            onPress={() => handleZoneClick(`A${z}`)}
-                          />
-                        </View>
-                      ))}
-                    </View>
+                  <View style={tw`flex-1`}>
+                    <View style={tw`flex-row flex-wrap`}>{zones.map(z => <CourtZone key={`B-${z}`} label={`B${z}`} team="B" active={selectionStep > 0} isSelected={origin === `B${z}`} onPress={() => handleZoneClick(`B${z}`)} />)}</View>
                   </View>
-                  {/* Equipo B */}
-                  <View style={tw`flex-1 pl-2`}>
-                    <View style={tw`flex-1 flex-row flex-wrap`}>
-                      {zones.map(z => (
-                        <View key={`B-${z}`} style={tw`w-1/3`}>
-                          <CourtZone
-                            label={`B${z}`}
-                            team="B"
-                            active={selectionStep > 0}
-                            isSelected={origin === `B${z}`}
-                            onPress={() => handleZoneClick(`B${z}`)}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* LADO DERECHO: ACCIONES */}
-              <ScrollView style={tw`w-1/3 pr-2`}>
-                {renderActionGroup('Servicio', 'SERVICIO', 'bg-cyan-600', ['BAJ', 'FLO', 'SAL', 'SAF'])}
-                {renderActionGroup('Ataque', 'ATAQUE', 'bg-yellow-600', ['RM', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn'])}
-                {renderActionGroup('Bloqueo', 'BLOQUEO', 'bg-red-600', ['Bl', 'Bd', 'Bn'])}
-                {renderActionGroup('Defensa', 'DEFENSA', 'bg-green-600', ['Dd', 'Dltd', 'Ld', 'Cc'])}
-                {renderActionGroup('Recepción', 'RECEPCION', 'bg-indigo-600', ['2ma', 'Ppm'])}
-                {renderActionGroup('Errores', 'ERRORES', 'bg-orange-600', ['Ens', 'Enr', 'Enp', 'Enm'])}
-              </ScrollView>
+               </View>
             </View>
+
+            {/* TODAS LAS COLUMNAS EN FILA (Sin ScrollView interno) */}
+            <View style={tw`flex-1 flex-row gap-2 justify-center`}>
+              {renderActionColumn('Serv.', 'SERVICIO', ['BAJ', 'FLO', 'SAL', 'SAF'])}
+              {renderActionColumn('Rec.', 'RECEPCION', ['2ma', 'Ppm'])}
+              {renderActionColumn('Acom.', 'ACOMODADA', ['P2a', 'P2b'])}
+              {renderActionColumn('Ataq.', 'ATAQUE', ['Rm', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn', 'Rd'])}
+              {renderActionColumn('Bloq.', 'BLOQUEO', ['Bl', 'Bd', 'Bn'])}
+              {renderActionColumn('Def.', 'DEFENSA', ['Dd', 'Dltd', 'Ld', 'Cc'])}
+              {renderActionColumn('E. Serv', 'ERRORES_SERV', ['SFC', 'SR', 'SME'])}
+              {renderActionColumn('E. Com', 'ERRORES_COM', ['CI', 'MC'])}
+              {renderActionColumn('E. Pos', 'ERRORES_POS', ['NAT', 'CJR', 'MCA', 'JFZ'])}
+              {renderActionColumn('E. Tec', 'ERRORES_TEC', ['GMD', 'TI', 'MER', 'BTR'])}
+            </View>
+
+          </View>
 
             {/* FOOTER: CRONÓMETROS Y CONTROL */}
             <View style={tw`h-24 bg-slate-800 border-t border-slate-700 flex-row items-center justify-between px-10`}>
