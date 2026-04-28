@@ -30,13 +30,17 @@ export const useScoutingLogic = () => {
   const [currentRally, setCurrentRally] = useState<any[]>([]);
   const [lastActionType, setLastActionType] = useState<string>('START');
   const [mustSwitchSide, setMustSwitchSide] = useState(false);
-  const [windA, setWindA] = useState('CALMA');
+  const [windA, setWindA] = useState('A FAVOR');
 
   // Lógica de viento y cambio de lado (se mantiene igual)
   const swapWindDirection = (currentWind: string) => {
     if (currentWind === 'A FAVOR') return 'EN CONTRA';
     if (currentWind === 'EN CONTRA') return 'A FAVOR';
     return currentWind;
+  };
+
+  const toggleWind = () => {
+    setWindA(prev => prev === 'A FAVOR' ? 'EN CONTRA' : 'A FAVOR');
   };
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export const useScoutingLogic = () => {
     confirmActionValue,  // Exportamos esto
     commitPoint,
     clearRally,
-    setWindA
+    setWindA,
+    toggleWind
   };
 };

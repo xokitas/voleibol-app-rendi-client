@@ -89,7 +89,9 @@ export default function GameScreenWeb() {
     selectedPlayerId,    // <--- Ahora viene del hook
     handlePlayerSelect,
     commitPoint,
-    clearRally
+    clearRally,
+    toggleWind,
+    currentSet
   } = useScoutingLogic();
 
   const timers = useGameTimers();
@@ -99,8 +101,9 @@ export default function GameScreenWeb() {
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const [selectionStep, setSelectionStep] = useState(0); // 0 = ninguna, 1 = origen, 2 = destino
   const [origin, setOrigin] = useState<string | null>(null);
-
+  const [hasStarted, setHasStarted] = useState(false);
   const [blink, setBlink] = useState(false);
+
 
   // Efecto de parpadeo para cambio de cancha
   useEffect(() => {
@@ -277,41 +280,74 @@ export default function GameScreenWeb() {
 
           <View style={tw`flex-1 flex-col`}>
             {/* HEADER / MARCADOR */}
-            <View style={[
-              tw`h-32 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300`,
-              blink ? tw`bg-red-600` : tw`bg-slate-900`
-            ]}>
-              <View style={tw`items-center`}>
-                <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>{eventData?.teamA?.name || 'EQUIPO A'}</Text>
-                <View style={tw`flex-row items-center gap-2`}>
-                  <Ionicons name={wind.A === 'A FAVOR' ? 'arrow-up-circle' : 'arrow-down-circle'} size={16} color="#94a3b8" />
-                  <Text style={tw`text-slate-400 font-bold text-[10px]`}>VIENTO: {wind.A}</Text>
+              <View style={[
+                tw`h-36 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300`,
+                blink ? tw`bg-red-900` : tw`bg-slate-950` // <--- Fondo azul oscuro igual al footer
+              ]}>
+                
+                {/* EQUIPO A */}
+                <View style={tw`items-center`}>
+                  <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>{eventData?.teamA?.name || 'EQUIPO A'}</Text>
+                  
+                  {/* Botón de Viento A - Ahora es clickeable */}
+                  <TouchableOpacity 
+                    onPress={toggleWind} 
+                    style={tw`flex-row items-center gap-2 mt-1 px-3 py-1.5 rounded-lg active:bg-slate-800`}
+                  >
+                    <Ionicons 
+                      name={wind.A === 'A FAVOR' ? 'arrow-up-circle' : 'arrow-down-circle'} 
+                      size={16} 
+                      color={wind.A === 'A FAVOR' ? '#4ade80' : '#f87171'} // Verde o Rojo
+                    />
+                    <Text style={tw`text-slate-300 font-bold text-[10px]`}>VIENTO: {wind.A}</Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={tw`text-cyan-400 font-black mt-1`}>SETS: {sets.A}</Text>
                 </View>
-                <Text style={tw`text-cyan-400 font-black mt-1`}>SETS: {sets.A}</Text>
-              </View>
 
-              <View style={tw`items-center bg-slate-800 px-12 py-4 rounded-3xl border border-slate-700 shadow-2xl`}>
-                <Text style={tw`text-slate-500 font-black text-[10px] tracking-[0.3em] mb-2`}>PUNTUACIÓN</Text>
-                <View style={tw`flex-row items-center gap-8`}>
-                  <Text style={tw`text-6xl font-black text-white`}>{score.A}</Text>
-                  <View style={tw`w-2 h-2 rounded-full bg-slate-600`} />
-                  <Text style={tw`text-6xl font-black text-white`}>{score.B}</Text>
-                </View>
-              </View>
+                {/* PUNTUACIÓN CENTRAL (AJUSTADA PARA SER MÁS PEQUEÑA) */}
+                  <View style={tw`items-center bg-slate-950 px-8 py-5s border-slate-800 shadow-2xl`}>
+                    <Text style={tw`text-slate-500 font-black text-[10px] tracking-[0.3em] mb-1`}>PUNTUACIÓN</Text>
+                    
+                    <View style={tw`flex-row items-center gap-4`}>
+                      <Text style={tw`text-6xl font-black text-white`}>{score.A}</Text>
+                      <View style={tw`w-1 h-1 rounded-full bg-slate-700`} />
+                      <Text style={tw`text-6xl font-black text-white`}>{score.B}</Text>
+                    </View>
+                    
+                    {/* Set Actual más pequeño y estético */}
+                    <View style={tw`mt-1 border-t border-slate-800 pt-1 w-full items-center`}>
+                      <Text style={tw`text-yellow-500/80 font-black text-[11px] uppercase tracking-widest`}>
+                        SET {currentSet}
+                      </Text>
+                    </View>
+                  </View>
 
-              <View style={tw`items-center`}>
-                <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>{eventData?.teamB?.name || 'EQUIPO B'}</Text>
-                <View style={tw`flex-row items-center gap-2`}>
-                  <Ionicons name={wind.B === 'A FAVOR' ? 'arrow-up-circle' : 'arrow-down-circle'} size={16} color="#94a3b8" />
-                  <Text style={tw`text-slate-400 font-bold text-[10px]`}>VIENTO: {wind.B}</Text>
+                {/* EQUIPO B */}
+                <View style={tw`items-center`}>
+                  <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>{eventData?.teamB?.name || 'EQUIPO B'}</Text>
+                  
+                  {/* Botón de Viento B - Ahora es clickeable */}
+                  <TouchableOpacity 
+                    onPress={toggleWind} 
+                    style={tw`flex-row items-center gap-2 mt-1 px-3 py-1.5 rounded-lg active:bg-slate-800`}
+                  >
+                    <Ionicons 
+                      name={wind.B === 'A FAVOR' ? 'arrow-up-circle' : 'arrow-down-circle'} 
+                      size={16} 
+                      color={wind.B === 'A FAVOR' ? '#4ade80' : '#f87171'} // Verde o Rojo
+                    />
+                    <Text style={tw`text-slate-300 font-bold text-[10px]`}>VIENTO: {wind.B}</Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={tw`text-cyan-400 font-black mt-1`}>SETS: {sets.B}</Text>
                 </View>
-                <Text style={tw`text-cyan-400 font-black mt-1`}>SETS: {sets.B}</Text>
+                
               </View>
-            </View>
 
             {/* CONTENIDO PRINCIPAL: CANCHA Y BOTONES */}
             {/* ÁREA DE TRABAJO: CANCHA + 10 COLUMNAS DE ACCIÓN */}
-          <View style={tw`flex-1 flex-row p-3 gap-2`}>
+          <View style={tw`flex-1 flex-row p-3 gap-2 bg-slate-950`}>
             
             {/* CANCHA (Mínimo tamaño posible para dar prioridad a botones) */}
             <View style={tw`w-48 bg-slate-900/50 rounded-2xl p-2 border border-slate-800 justify-center`}>
@@ -342,60 +378,90 @@ export default function GameScreenWeb() {
           </View>
 
             {/* FOOTER: CRONÓMETROS Y CONTROL */}
-            <View style={tw`h-24 bg-slate-800 border-t border-slate-700 flex-row items-center justify-between px-10`}>
-              <View style={tw`flex-row items-center gap-10`}>
-                <View>
-                  <Text style={tw`text-slate-500 font-black text-[10px] uppercase`}>Tiempo Total</Text>
-                  <Text style={tw`text-slate-100 font-mono text-2xl font-bold`}>{timers.formattedTotalTime}</Text>
+              <View style={tw`h-28 bg-slate-950 border-t border-slate-800 flex-row items-center justify-between px-10`}>
+                
+                {/* SECCIÓN IZQUIERDA: Solo el Manual (flex-1 para empujar al centro) */}
+                <View style={tw`flex-1 flex-row justify-start`}>
+                  <TouchableOpacity 
+                    onPress={() => setIsManualOpen(!isManualOpen)}
+                    style={tw`flex-row items-center gap-2 px-6 py-3 rounded-xl border-b-4 ${
+                      isManualOpen ? 'bg-slate-700 border-slate-900' : 'bg-yellow-500 border-yellow-700'
+                    }`}
+                  >
+                    <Ionicons 
+                      name={isManualOpen ? "close-circle" : "book"} 
+                      size={20} 
+                      color={isManualOpen ? "white" : "black"} 
+                    />
+                    <Text style={tw`font-black text-xs uppercase ${isManualOpen ? 'text-white' : 'text-black'}`}>
+                      Manual
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <View>
-                  <View style={tw`flex-row items-center gap-2`}>
-                    <View style={tw`w-2 h-2 rounded-full ${timers.isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`} />
-                    <Text style={tw`text-slate-500 font-black text-[10px] uppercase`}>Tiempo de Juego</Text>
+
+                {/* SECCIÓN CENTRAL: Cronómetros (Se mantiene en el centro real) */}
+                <View style={tw`flex-row items-center gap-10 bg-slate-900/50 px-8 py-4 rounded-3xl border border-slate-800`}>
+                  <View style={tw`items-center`}>
+                    <Text style={tw`text-slate-600 font-black text-[9px] uppercase mb-1`}>Tiempo Total</Text>
+                    <Text style={tw`text-white font-mono text-3xl font-bold`}>{timers.formattedTotalTime}</Text>
                   </View>
-                  <Text style={[tw`font-mono text-2xl font-bold`, timers.isRealTimeActive ? tw`text-green-400` : tw`text-slate-400`]}>{timers.formattedRealTime}</Text>
+
+                  <View style={tw`w-px h-10 bg-slate-800`} />
+
+                  <View style={tw`items-center`}>
+                    <Text style={tw`text-slate-600 font-black text-[9px] uppercase mb-1`}>En Juego</Text>
+                    <Text style={[tw`font-mono text-3xl font-bold`, timers.isRealTimeActive ? tw`text-green-400` : tw`text-slate-500`]}>
+                      {timers.formattedRealTime}
+                    </Text>
+                  </View>
                 </View>
-              {/* BOTÓN MANUAL FIJO - A LA DERECHA DEL CRONÓMETRO */}
-              <TouchableOpacity 
-                  onPress={() => setIsManualOpen(!isManualOpen)} 
-                  style={tw`flex-row items-center gap-3 px-6 py-3 rounded-2xl shadow-lg border-b-4 ${
-                    isManualOpen 
-                      ? 'bg-slate-700 border-slate-900' 
-                      : 'bg-yellow-500 border-yellow-700'
-                  }`}
-                >
-                  <Ionicons 
-                    name={isManualOpen ? "close-circle" : "book"} 
-                    size={20} 
-                    color={isManualOpen ? "white" : "black"} 
-                  />
-                  <Text style={tw`font-black text-xs uppercase ${isManualOpen ? 'text-white' : 'text-black'}`}>
-                    {isManualOpen ? 'Cerrar Manual' : 'Manual'}
-                  </Text>
-                </TouchableOpacity>
+
+                {/* SECCIÓN DERECHA: Controles */}
+                <View style={tw`flex-1 flex-row justify-end gap-4`}>
+                  {/* Botón Pausa / Reanudar */}
+                  <TouchableOpacity 
+                    onPress={() => {
+                      if (!hasStarted) {
+                        setHasStarted(true);
+                        timers.startRealTime();
+                      } else {
+                        timers.isRealTimeActive ? timers.stopRealTime() : timers.startRealTime();
+                      }
+                    }}
+                    style={tw`flex-row items-center gap-2 px-6 py-3 rounded-xl border-b-4 ${
+                      !hasStarted ? 'bg-green-600 border-green-800' : // Comenzar (Verde)
+                      timers.isRealTimeActive ? 'bg-orange-600 border-orange-800' : // Pausar (Naranja)
+                      'bg-green-600 border-green-800' // Reanudar (Verde)
+                    }`}
+                  >
+                    <Ionicons 
+                      name={!hasStarted ? "play-skip-forward" : timers.isRealTimeActive ? "pause" : "play"} 
+                      size={20} 
+                      color="white" 
+                    />
+                    <Text style={tw`text-white font-black text-xs uppercase`}>
+                      {!hasStarted ? 'Comenzar' : timers.isRealTimeActive ? 'Pausar' : 'Reanudar'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Botón Final Parcial */}
+                  <TouchableOpacity 
+                    onPress={() => {
+                      if(window.confirm("¿Deseas finalizar el parcial actual?")) {
+                        console.log("Finalizando Parcial...");
+                      }
+                    }}
+                    style={tw`flex-row items-center gap-2 px-6 py-3 bg-slate-800 rounded-xl border-b-4 border-slate-950`}
+                  >
+                    <Ionicons name="stop-circle" size={20} color="#f87171" />
+                    <Text style={tw`text-white font-black text-xs uppercase`}>Final Parcial</Text>
+                  </TouchableOpacity>
+                </View>
+
               </View>
-
-              {/* SECCIÓN DERECHA: Botones de Punto */}
-              <View style={tw`flex-row gap-4`}>
-                <TouchableOpacity 
-                  onPress={() => commitPoint('A')} 
-                  style={tw`bg-red-600 px-8 py-3 rounded-xl shadow-lg shadow-red-900/20`}
-                >
-                  <Text style={tw`text-white font-black text-xs uppercase`}>Punto A</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => commitPoint('B')} 
-                  style={tw`bg-blue-600 px-8 py-3 rounded-xl shadow-lg shadow-blue-900/20`}
-                >
-                  <Text style={tw`text-white font-black text-xs uppercase`}>Punto B</Text>
-                </TouchableOpacity>
-              </View>
-
             </View>
           </View>
         </View>
       </View>
-    </View>
   );
 }
