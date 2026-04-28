@@ -23,21 +23,24 @@ const categoryColors: Record<string, string> = {
   ERRORES_TEC: 'bg-[#4b5563]',  // Grisáceo morado
 };
 
-const CourtZone = ({ label, team, active, onPress, isSelected }: {
-  label: string;
-  team: 'A' | 'B';
+const CourtZone = ({ id, displayLabel, active, onPress, isSelected }: {
+  id: string; // El ID lógico: "A-TI"
+  displayLabel: string; // Lo que se ve: "TI"
   active: boolean;
   onPress: () => void;
   isSelected: boolean;
 }) => (
   <TouchableOpacity
     onPress={onPress}
-    style={tw`flex-1 m-1 rounded-lg border-2 justify-center items-center h-24 ${
+    // Reducimos altura y márgenes para ganar espacio vertical
+    style={tw`flex-1 m-[1px] rounded-md border justify-center items-center ${
       isSelected ? 'border-yellow-400 bg-yellow-400/20' :
-      active ? 'border-slate-600 bg-slate-700' : 'border-slate-800 bg-slate-900/50'
+      active ? 'border-slate-700 bg-slate-800' : 'border-slate-800/40 bg-slate-900/10'
     }`}
   >
-    <Text style={tw`text-xs font-black ${isSelected ? 'text-yellow-400' : 'text-slate-500'}`}>{label}</Text>
+    <Text style={tw`text-[9px] font-bold ${isSelected ? 'text-yellow-400' : 'text-slate-500'}`}>
+      {displayLabel}
+    </Text>
   </TouchableOpacity>
 );
 
@@ -209,7 +212,12 @@ export default function GameScreenWeb() {
     );
   };
 
-  const zones = ['1', '6', '5', '2', '3', '4']; // Zonas estándar de voleibol
+  const zonesA = [
+    ['5', '4'], // Columna 1 (Zaga Izq, Red Izq)
+    ['6', '3'], // Columna 2 (Zaga Cent, Red Cent)
+    ['1', '2'], // Columna 3 (Zaga Der, Red Der)
+  ]; // Zonas estándar de voleibol
+
 
   const handleExit = (targetRoute?: string) => {
     const mensaje = "¿Deseas guardar los cambios antes de salir?";
@@ -345,37 +353,77 @@ export default function GameScreenWeb() {
                 
               </View>
 
-            {/* CONTENIDO PRINCIPAL: CANCHA Y BOTONES */}
-            {/* ÁREA DE TRABAJO: CANCHA + 10 COLUMNAS DE ACCIÓN */}
-          <View style={tw`flex-1 flex-row p-3 gap-2 bg-slate-950`}>
-            
-            {/* CANCHA (Mínimo tamaño posible para dar prioridad a botones) */}
-            <View style={tw`w-48 bg-slate-900/50 rounded-2xl p-2 border border-slate-800 justify-center`}>
-               <View style={tw`flex-row h-40 w-full self-center`}> 
-                  <View style={tw`flex-1 border-r border-slate-700`}>
-                    <View style={tw`flex-row flex-wrap`}>{zones.map(z => <CourtZone key={`A-${z}`} label={`A${z}`} team="A" active={selectionStep > 0} isSelected={origin === `A${z}`} onPress={() => handleZoneClick(`A${z}`)} />)}</View>
-                  </View>
-                  <View style={tw`flex-1`}>
-                    <View style={tw`flex-row flex-wrap`}>{zones.map(z => <CourtZone key={`B-${z}`} label={`B${z}`} team="B" active={selectionStep > 0} isSelected={origin === `B${z}`} onPress={() => handleZoneClick(`B${z}`)} />)}</View>
-                  </View>
-               </View>
-            </View>
+            {/* CONTENIDO PRINCIPAL: CANCHA Y BOTONES (Organizados en Fila) */}
+              <View style={tw`flex-1 flex-row items-center px-4 gap-4 overflow-hidden`}>
+                
+                {/* LADO IZQUIERDO: CANCHA COMPACTA */}
+                <View style={tw`w-52 bg-slate-950/50 rounded-2xl p-2 border border-slate-800 shadow-xl`}>
+                  <View style={tw`flex-row h-60 w-full`}> 
+                    
+                    {/* EQUIPO A (Izquierda) */}
+                    <View style={tw`flex-1 flex-row`}>
+                      <View style={tw`flex-1 flex-col`}>
+                        {['TI', 'TC', 'TD'].map(pos => (
+                          <CourtZone 
+                            key={`A-${pos}`} id={`A-${pos}`} displayLabel={pos}
+                            active={selectionStep > 0} isSelected={origin === `A-${pos}`} 
+                            onPress={() => handleZoneClick(`A-${pos}`)} 
+                          />
+                        ))}
+                      </View>
+                      <View style={tw`flex-1 flex-col`}>
+                        {['DI', 'DC', 'DD'].map(pos => (
+                          <CourtZone 
+                            key={`A-${pos}`} id={`A-${pos}`} displayLabel={pos}
+                            active={selectionStep > 0} isSelected={origin === `A-${pos}`} 
+                            onPress={() => handleZoneClick(`A-${pos}`)} 
+                          />
+                        ))}
+                      </View>
+                    </View>
 
-            {/* TODAS LAS COLUMNAS EN FILA (Sin ScrollView interno) */}
-            <View style={tw`flex-1 flex-row gap-2 justify-center`}>
-              {renderActionColumn('Serv.', 'SERVICIO', ['BAJ', 'FLO', 'SAL', 'SAF'])}
-              {renderActionColumn('Rec.', 'RECEPCION', ['2ma', 'Ppm'])}
-              {renderActionColumn('Acom.', 'ACOMODADA', ['P2a', 'P2b'])}
-              {renderActionColumn('Ataq.', 'ATAQUE', ['RM', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn', 'Rd'])}
-              {renderActionColumn('Bloq.', 'BLOQUEO', ['Bl', 'Bd', 'Bn'])}
-              {renderActionColumn('Def.', 'DEFENSA', ['Dd', 'Dltd', 'Ld', 'Cc'])}
-              {renderActionColumn('E. Serv', 'ERRORES_SERV', ['SFC', 'SR', 'SME'])}
-              {renderActionColumn('E. Com', 'ERRORES_COM', ['CI', 'MC'])}
-              {renderActionColumn('E. Pos', 'ERRORES_POS', ['NAT', 'CJR', 'MCA', 'JFZ'])}
-              {renderActionColumn('E. Tec', 'ERRORES_TEC', ['GMD', 'TI', 'MER', 'BTR'])}
-            </View>
+                    {/* RED */}
+                    <View style={tw`w-[1px] bg-slate-700 mx-1`} />
 
-          </View>
+                    {/* EQUIPO B (Derecha - Espejo) */}
+                    <View style={tw`flex-1 flex-row`}>
+                      <View style={tw`flex-1 flex-col`}>
+                        {['DD', 'DC', 'DI'].map(pos => (
+                          <CourtZone 
+                            key={`B-${pos}`} id={`B-${pos}`} displayLabel={pos}
+                            active={selectionStep > 0} isSelected={origin === `B-${pos}`} 
+                            onPress={() => handleZoneClick(`B-${pos}`)} 
+                          />
+                        ))}
+                      </View>
+                      <View style={tw`flex-1 flex-col`}>
+                        {['TD', 'TC', 'TI'].map(pos => (
+                          <CourtZone 
+                            key={`B-${pos}`} id={`B-${pos}`} displayLabel={pos}
+                            active={selectionStep > 0} isSelected={origin === `B-${pos}`} 
+                            onPress={() => handleZoneClick(`B-${pos}`)} 
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* LADO DERECHO: TODAS LAS COLUMNAS DE ACCIÓN */}
+                <View style={tw`flex-1 flex-row gap-1 justify-start`}>
+                  {renderActionColumn('Serv.', 'SERVICIO', ['BAJ', 'FLO', 'SAL', 'SAF'])}
+                  {renderActionColumn('Rec.', 'RECEPCION', ['2ma', 'Ppm'])}
+                  {renderActionColumn('Acom.', 'ACOMODADA', ['P2a', 'P2b'])}
+                  {renderActionColumn('Ataq.', 'ATAQUE', ['RM', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn', 'Rd'])}
+                  {renderActionColumn('Bloq.', 'BLOQUEO', ['Bl', 'Bd', 'Bn'])}
+                  {renderActionColumn('Def.', 'DEFENSA', ['Dd', 'Dltd', 'Ld', 'Cc'])}
+                  {renderActionColumn('E. Serv', 'ERRORES_SERV', ['SFC', 'SR', 'SME'])}
+                  {renderActionColumn('E. Com', 'ERRORES_COM', ['CI', 'MC'])}
+                  {renderActionColumn('E. Pos', 'ERRORES_POS', ['NAT', 'CJR', 'MCA', 'JFZ'])}
+                  {renderActionColumn('E. Tec', 'ERRORES_TEC', ['GMD', 'TI', 'MER', 'BTR'])}
+                </View>
+
+              </View>
 
             {/* FOOTER: CRONÓMETROS Y CONTROL */}
               <View style={tw`h-28 bg-slate-950 border-t border-slate-800 flex-row items-center justify-between px-10`}>
