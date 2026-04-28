@@ -165,7 +165,6 @@ export default function GameScreenWeb() {
 
   const renderActionColumn = (title: string, category: string, subs: string[]) => {
     const bgColor = categoryColors[category] || 'bg-slate-800';
-    // Si el fondo es muy oscuro (como Defensa o Errores), usamos texto blanco, si no, negro.
     const textColor = 'text-white';
   
     return (
@@ -175,24 +174,32 @@ export default function GameScreenWeb() {
         </Text>
         <View style={tw`flex-col gap-1.5`}>
           {subs.map(sub => (
-            <TouchableOpacity
+            /* Este View es el que "le avisa" al ReferencePanel qué acción estás mirando */
+            <View 
               key={sub}
-              onPress={() => handleActionClick(category, sub)}
-              disabled={!canPerformAction(category)}
-              style={[
-                tw`py-2 rounded-lg border-b-2 items-center justify-center shadow-sm`,
-                pendingAction?.subAction === sub 
-                  ? [tw`border-white scale-105`, { backgroundColor: '#ffffff' }] 
-                  : [tw`border-black/10`, tw`${bgColor}`]
-              ]}
+              // @ts-ignore
+              onMouseEnter={() => setHoveredAction(sub)} 
+              // @ts-ignore
+              onMouseLeave={() => setHoveredAction(null)}
             >
-              <Text style={[
-                tw`font-black text-[12px] tracking-tight`, 
-                pendingAction?.subAction === sub ? tw`text-black` : tw`${textColor}`
-              ]}>
-                {sub}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleActionClick(category, sub)}
+                disabled={!canPerformAction(category)}
+                style={[
+                  tw`py-2 rounded-lg border-b-2 items-center justify-center shadow-sm`,
+                  pendingAction?.subAction === sub 
+                    ? [tw`border-white scale-105`, { backgroundColor: '#ffffff' }] 
+                    : [tw`border-black/10`, tw`${bgColor}`]
+                ]}
+              >
+                <Text style={[
+                  tw`font-black text-[12px] tracking-tight`, 
+                  pendingAction?.subAction === sub ? tw`text-black` : tw`${textColor}`
+                ]}>
+                  {sub}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       </View>
@@ -323,7 +330,7 @@ export default function GameScreenWeb() {
               {renderActionColumn('Serv.', 'SERVICIO', ['BAJ', 'FLO', 'SAL', 'SAF'])}
               {renderActionColumn('Rec.', 'RECEPCION', ['2ma', 'Ppm'])}
               {renderActionColumn('Acom.', 'ACOMODADA', ['P2a', 'P2b'])}
-              {renderActionColumn('Ataq.', 'ATAQUE', ['Rm', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn', 'Rd'])}
+              {renderActionColumn('Ataq.', 'ATAQUE', ['RM', 'Rca', 'Ub', 'Tr', 'Acd', 'Rdjn', 'Rd'])}
               {renderActionColumn('Bloq.', 'BLOQUEO', ['Bl', 'Bd', 'Bn'])}
               {renderActionColumn('Def.', 'DEFENSA', ['Dd', 'Dltd', 'Ld', 'Cc'])}
               {renderActionColumn('E. Serv', 'ERRORES_SERV', ['SFC', 'SR', 'SME'])}
