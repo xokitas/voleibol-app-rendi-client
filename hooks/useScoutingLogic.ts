@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 
+// Flujo lógico de acciones para habilitar/deshabilitar botones en la UI
 const ACTION_FLOW: Record<string, string[]> = {
-  START: ['SERVICIO', 'ERRORES'],
-  SERVICIO: ['RECEPCION', 'DEFENSA', 'ERRORES'],
-  RECEPCION: ['ACOMODADA', 'ERRORES'],
-  DEFENSA: ['ACOMODADA', 'ERRORES'],
-  ACOMODADA: ['ATAQUE', 'ERRORES'],
-  ATAQUE: ['BLOQUEO', 'DEFENSA', 'ERRORES'],
-  BLOQUEO: ['ACOMODADA', 'DEFENSA', 'ERRORES'],
+  START: ['SERVICIO', 'ERRORES_SERV', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  SERVICIO: ['RECEPCION', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  RECEPCION: ['ACOMODADA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  DEFENSA: ['ACOMODADA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  ACOMODADA: ['ATAQUE', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  ATAQUE: ['BLOQUEO', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  BLOQUEO: ['ACOMODADA', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
 };
 
 export const useScoutingLogic = () => {
@@ -18,13 +19,15 @@ export const useScoutingLogic = () => {
   const [setsB, setSetsB] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
   
-  // --- ESTADOS DE FLUJO (NUEVOS) ---
+  // --- ESTADOS DE FLUJO ---
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{
     category: string;
     subAction: string;
     playerId: string;
     value?: number;
+    origin?: string;
+    destination?: string;
   } | null>(null);
 
   const [currentRally, setCurrentRally] = useState<any[]>([]);
@@ -32,17 +35,16 @@ export const useScoutingLogic = () => {
   const [mustSwitchSide, setMustSwitchSide] = useState(false);
   const [windA, setWindA] = useState('A FAVOR');
 
-  // Lógica de viento y cambio de lado (se mantiene igual)
+  // --- LÓGICA DE AMBIENTE ---
   const swapWindDirection = (currentWind: string) => {
-    if (currentWind === 'A FAVOR') return 'EN CONTRA';
-    if (currentWind === 'EN CONTRA') return 'A FAVOR';
-    return currentWind;
+    return currentWind === 'A FAVOR' ? 'EN CONTRA' : 'A FAVOR';
   };
 
   const toggleWind = () => {
-    setWindA(prev => prev === 'A FAVOR' ? 'EN CONTRA' : 'A FAVOR');
+    setWindA(prev => (prev === 'A FAVOR' ? 'EN CONTRA' : 'A FAVOR'));
   };
 
+  // Cambio de lado automático cada 7 puntos (Sets 1 y 2) o 5 puntos (Set 3)
   useEffect(() => {
     const totalPoints = scoreA + scoreB;
     const switchInterval = currentSet <= 2 ? 7 : 5; 
@@ -54,14 +56,14 @@ export const useScoutingLogic = () => {
     }
   }, [scoreA, scoreB, currentSet]);
 
-  // --- FUNCIONES DE ACCIÓN ---
+  // --- FUNCIONES DE CONTROL ---
   
   const handlePlayerSelect = (id: string) => {
     setSelectedPlayerId(id);
   };
 
   const handleActionClick = (category: string, subAction: string) => {
-    if (!selectedPlayerId) return; // No hacemos nada si no hay jugador
+    if (!selectedPlayerId) return;
     
     setPendingAction({
       category,
@@ -73,22 +75,33 @@ export const useScoutingLogic = () => {
   const confirmActionValue = (value: number) => {
     if (!pendingAction) return;
 
-    const newAction = {
+    setPendingAction(prev => (prev ? { ...prev, value } : null));
+    // No guardamos en el rally todavía, esperamos por las zonas en la UI
+  };
+
+  // PASO FINAL: Se llama desde la cancha cuando se marca el destino
+  const updatePendingZones = (origin: string, destination: string) => {
+    if (!pendingAction || pendingAction.value === undefined) return;
+
+    const finalAction = {
       ...pendingAction,
-      value,
+      origin,
+      destination,
       timestamp: new Date().toISOString()
     };
 
-    setCurrentRally(prev => [...prev, newAction]);
+    setCurrentRally(prev => [...prev, finalAction]);
     setLastActionType(pendingAction.category);
     
-    // Limpiamos la selección para el siguiente paso
+    // Reset para la siguiente acción del rally
     setPendingAction(null);
     setSelectedPlayerId(null);
   };
 
   const commitPoint = (teamWhoWon: 'A' | 'B') => {
-    // ... tu lógica de puntos se mantiene igual ...
+    if (teamWhoWon === 'A') setScoreA(prev => prev + 1);
+    else setScoreB(prev => prev + 1);
+    
     clearRally();
   };
 
@@ -100,8 +113,11 @@ export const useScoutingLogic = () => {
   };
 
   const canPerformAction = (cat: string) => {
+    // Si es un error, siempre está permitido
+    if (cat.startsWith('ERRORES')) return true;
+    
     const allowedActions = ACTION_FLOW[lastActionType];
-    if (!allowedActions) return cat === 'SERVICIO' || cat === 'ERRORES';
+    if (!allowedActions) return cat === 'SERVICIO';
     return allowedActions.includes(cat);
   };
 
@@ -112,15 +128,15 @@ export const useScoutingLogic = () => {
     currentSet,
     currentRally,
     mustSwitchSide,
-    selectedPlayerId,    // Exportamos esto
-    pendingAction,       // Exportamos esto
+    selectedPlayerId,
+    pendingAction,
     canPerformAction,
-    handlePlayerSelect,  // Exportamos esto
-    handleActionClick,   // Exportamos esto
-    confirmActionValue,  // Exportamos esto
+    handlePlayerSelect,
+    handleActionClick,
+    confirmActionValue,
+    updatePendingZones, // Función clave para cerrar el scouting
     commitPoint,
     clearRally,
-    setWindA,
     toggleWind
   };
 };

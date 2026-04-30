@@ -31,7 +31,9 @@ const WEEK_MAP = {
 
 const POSITION_OPTIONS = [
   { label: 'Bloqueador', value: 'B' },
-  { label: 'Defensor', value: 'D' }
+  { label: 'Defensor', value: 'D' },
+  { label: 'Universal', value: 'U' },
+
 ];
 
 const ZONE_OPTIONS = [
@@ -214,8 +216,8 @@ export default function RegisterDataScreen() {
     { number: '2', fullName: '', position: 'D', zone: 'CEN' }
   ];
   
-  const [playersA, setPlayersA] = useState(initialPlayers);
-  const [playersB, setPlayersB] = useState(initialPlayers);
+  const [playersA, setPlayersA] = useState(initialPlayers.map(p => ({ ...p })));
+  const [playersB, setPlayersB] = useState(initialPlayers.map(p => ({ ...p })));
 
   const handleStartEvent = () => {
     // 1. Preparamos el objeto maestro
@@ -242,11 +244,17 @@ export default function RegisterDataScreen() {
 
   const updatePlayer = (team: 'A' | 'B', index: number, field: string, value: string) => {
     const setter = team === 'A' ? setPlayersA : setPlayersB;
-    const players = team === 'A' ? [...playersA] : [...playersB];
-    // @ts-ignore
-    players[index][field] = value;
-    setter(players);
-  };
+
+    setter(prevPlayers => 
+    prevPlayers.map((player, i) => {
+      if (i === index) {
+        // Retornamos un nuevo objeto con el campo actualizado
+        return { ...player, [field]: value };
+      }
+      return player;
+    })
+  );
+};
 
   const addPlayer = (team: 'A' | 'B') => {
     if (type !== 'entrenamiento') return; 
@@ -368,7 +376,7 @@ export default function RegisterDataScreen() {
 
         {/* --- TABLA EQUIPO A --- */}
         <View style={tw`flex-row justify-between items-center mb-2`}>
-          <Text style={tw`text-[#003366] font-bold`}>Jugadores {teamA}</Text>
+          <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamA}</Text>
           {type === 'entrenamiento' && (
             <TouchableOpacity onPress={() => addPlayer('A')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
               <Ionicons name="add-circle" size={16} color="#003366" />
@@ -437,7 +445,7 @@ export default function RegisterDataScreen() {
 
         {/* --- TABLA EQUIPO B --- */}
         <View style={tw`flex-row justify-between items-center mt-8 mb-2`}>
-          <Text style={tw`text-[#003366] font-bold`}>Jugadores {teamB}</Text>
+          <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamB}</Text>
           {type === 'entrenamiento' && (
             <TouchableOpacity onPress={() => addPlayer('B')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
               <Ionicons name="add-circle" size={16} color="#003366" />

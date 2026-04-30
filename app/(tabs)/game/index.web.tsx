@@ -94,7 +94,8 @@ export default function GameScreenWeb() {
     commitPoint,
     clearRally,
     toggleWind,
-    currentSet
+    currentSet,
+    updatePendingZones
   } = useScoutingLogic();
 
   const timers = useGameTimers();
@@ -151,21 +152,22 @@ export default function GameScreenWeb() {
 
 
   const handleZoneClick = (zoneLabel: string) => {
-    // Solo permitimos marcar zonas si ya hay una acción seleccionada y con valor (teclado)
+    // Solo actuamos si hay una acción con valor definida por teclado
     if (pendingAction && pendingAction.value !== undefined) {
       if (selectionStep === 0) {
-        // Marcamos origen
         setOrigin(zoneLabel);
-        setSelectionStep(1);
+        setSelectionStep(1); // Esperando el destino
       } else if (selectionStep === 1) {
-        console.log("Acción Completa:", {
-          ...pendingAction,
-          origen: origin,
-          destino: zoneLabel
-        });
+        // PASO 5: Cerramos la acción
+        updatePendingZones(origin!, zoneLabel);
+        
+        // Limpieza de UI local
         setSelectionStep(0);
         setOrigin(null);
+        console.log("Acción guardada con éxito en el Rally");
       }
+    } else {
+      // Feedback visual opcional: "Primero elige acción y puntuación"
     }
   };
 
