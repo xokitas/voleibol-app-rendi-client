@@ -17,6 +17,22 @@ export default function MenuScreen() {
     { id: 'externo', label: 'Control externo', icon: 'earth-outline' },
   ];
 
+  // Función para determinar la ruta según el Tab activo
+  const handleNavigation = (optionId: string) => {
+    if (activeTab === 'reg') {
+      // REGISTRO: Cada tipo tiene su formulario, usamos ruta dinámica
+      router.push(`/(tabs)/register/${optionId}` as any);
+    } else {
+      // VISUALIZAR o CARGAR: La pantalla es la misma, pasamos el filtro por parámetro
+      const route = activeTab === 'vis' ? '/(tabs)/results' : '/(tabs)/load';
+      
+      router.push({
+        pathname: route,
+        params: { filter: optionId } // Enviamos el tipo para que la pantalla sepa qué buscar
+      } as any);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* HEADER POTENCIADO: Toma el control del título y el botón de atrás */}
@@ -61,25 +77,23 @@ export default function MenuScreen() {
         </View>
 
         {/* Desplegable dinámico */}
-        {activeTab && (
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownTitle}>
-              Seleccione modalidad:
-            </Text>
-            {typeOptions.map((option) => (
-              <TouchableOpacity 
-                key={option.id}
-                style={styles.dropItem} 
-                activeOpacity={0.6}
-                onPress={() => router.push(`/(tabs)/register/${option.id}` as any)}>
-                
-                <Ionicons name={option.icon as any} size={20} color="#003366" />
-                <Text style={styles.dropText}>{option.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+          {activeTab && (
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownTitle}>Seleccione modalidad:</Text>
+              {typeOptions.map((option) => (
+                <TouchableOpacity 
+                  key={option.id}
+                  style={styles.dropItem} 
+                  activeOpacity={0.6}
+                  onPress={() => handleNavigation(option.id)} // <--- CORRECCIÓN AQUÍ
+                >
+                  <Ionicons name={option.icon as any} size={20} color="#003366" />
+                  <Text style={styles.dropText}>{option.label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
       </ScrollView>
     </SafeAreaView>
   );
