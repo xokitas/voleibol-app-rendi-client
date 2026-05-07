@@ -78,7 +78,7 @@ export default function ReferencePanel({ dark, isOpen, setIsOpen, hoveredAction 
           <View>
             <Text style={tw`text-slate-500 text-xs italic mb-6`}>Pasa el ratón sobre una acción para ver sus detalles técnicos.</Text>
             
-            <Text style={tw`text-[10px] font-black text-yellow-500 uppercase mb-4 tracking-widest`}>Guía de Registro</Text>
+            <Text style={tw`text-[10px] font-black text-yellow-500 uppercase mb-4 tracking-widest`}>Guía de Registro de Acciones</Text>
             
             {[
               { step: '1', title: 'JUGADOR', desc: 'Selecciona al protagonista en la cancha táctica.' },

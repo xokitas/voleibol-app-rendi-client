@@ -36,6 +36,8 @@ export const useScoutingLogic = () => {
   const [windA, setWindA] = useState('VIENTO A FAVOR');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
+  
+
   // Añadir esta función en useScoutingLogic
   const editRallyAction = (index: number) => {
     const actionToEdit = currentRally[index];
@@ -108,10 +110,15 @@ export const useScoutingLogic = () => {
   const updatePendingZones = (origin: string, destination: string) => {
     if (!pendingAction || pendingAction.value === undefined) return;
   
+      // Detectamos el viento del equipo que está actuando
+  const teamLetter = pendingAction.playerId.split('-')[0]; // 'A' o 'B'
+  const actionWind = teamLetter === 'A' ? windA : (windA === 'VIENTO A FAVOR' ? 'VIENTO EN CONTRA' : 'VIENTO A FAVOR');
+
     const finalAction = {
       ...pendingAction,
       origin,
       destination,
+      wind: actionWind,
       timestamp: new Date().toISOString()
     };
   
@@ -136,9 +143,34 @@ export const useScoutingLogic = () => {
   };
 
   const commitPoint = (teamWhoWon: 'A' | 'B') => {
-    if (teamWhoWon === 'A') setScoreA(prev => prev + 1);
-    else setScoreB(prev => prev + 1);
-    
+    let newScoreA = scoreA;
+    let newScoreB = scoreB;
+  
+    // 1. Sumar el punto al estado local para calcular el fin de set
+    if (teamWhoWon === 'A') {
+      newScoreA = scoreA + 1;
+      setScoreA(newScoreA);
+    } else {
+      newScoreB = scoreB + 1;
+      setScoreB(newScoreB);
+    }
+  
+    // 2. Lógica de cierre de SET (Reglas: 21 puntos sets 1-2, 15 puntos set 3)
+    const pointsToWin = currentSet <= 2 ? 21 : 15;
+    const leadingScore = teamWhoWon === 'A' ? newScoreA : newScoreB;
+    const trailingScore = teamWhoWon === 'A' ? newScoreB : newScoreA;
+  
+    // Se gana si llegas al puntaje Y hay diferencia de 2
+    if (leadingScore >= pointsToWin && (leadingScore - trailingScore) >= 2) {
+      if (teamWhoWon === 'A') setSetsA(prev => prev + 1);
+      else setSetsB(prev => prev + 1);
+  
+      // Resetear puntos y pasar al siguiente set
+      setScoreA(0);
+      setScoreB(0);
+      setCurrentSet(prev => prev + 1);
+    }
+  
     clearRally();
   };
 
