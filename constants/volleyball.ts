@@ -90,7 +90,7 @@ export const SUBACTIONS_METADATA: Record<string, { name: string; description: st
   },
 
   // --- ATAQUE ---
-  RM: { 
+  Rm: { 
     name: 'Remate muy fuerte', 
     description: 'Ataque de máxima potencia.',
     criteria: {
@@ -140,6 +140,13 @@ export const SUBACTIONS_METADATA: Record<string, { name: string; description: st
       '4': 'Punto: cruza, hay contacto rival pero no regresa el balón.'
     } 
   },
+  Rdpmp: { 
+    name: 'Remate Defensa Punto', 
+    description: 'Defensa enviada directa y premeditada a cancha contraria para ganar el punto.',
+    criteria: {
+      '4': 'Punto: El balón pica directo, el rival no tiene arreglo tras toque o comete red.'
+    } 
+},
   Rd: { 
     name: 'Recepción Directa', 
     description: 'Recibo que cae directo en zona libre rival.',

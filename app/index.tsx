@@ -2,10 +2,8 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import tw from '../lib/tailwind';
-
-// 1. Importamos el componente que creamos en la carpeta components
 import UserMenu from '../components/UserMenu';
+import tw from '../lib/tailwind';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -14,11 +12,12 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* 2. Colocamos el Menú aquí. 
-          Como en su archivo de origen tiene "position: absolute", 
-          se irá solito a la esquina superior derecha sin mover nada de la bienvenida.
-      */}
-      <UserMenu />
+      <View style={tw`absolute top-10 left-0 right-0 flex-col items-center gap-2`}>
+        <UserMenu />
+        <Text style={tw`text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]`}>
+          Iniciar Sesión
+        </Text>
+      </View>
 
       <View style={styles.mainContent}>
         <View style={styles.headerContainer}>
@@ -53,7 +52,6 @@ export default function WelcomeScreen() {
   );
 }
 
-// Los estilos se mantienen igual que la versión "Wide & Premium" que te gustó
 const styles = {
   container: tw`flex-1 bg-[#F8F8FF] justify-between items-center px-6 py-12`,
   mainContent: tw`flex-1 justify-center items-center w-full max-w-2xl`, 
