@@ -166,7 +166,8 @@ const SmartSelect = ({
           {options.map((opt: string) => (
             <TouchableOpacity
               key={opt}
-              onPress={() => {
+              onPress={(event) => {
+                event.stopPropagation(); // evita que el clic cierre el menú
                 onSelect(opt);
                 setIsOpen(null);
               }}
@@ -333,6 +334,14 @@ export default function RegisterDataScreen() {
       matchNumber: parseInt(formData.micro_num) || 1,
       branch,
       eventType: type as string,
+      startTime: formData.start_time.toTimeString().substring(0, 5),
+      place: formData.place || undefined,
+      denomination: formData.denomination || undefined,
+      meso: formData.meso,
+      micro: formData.micro,
+      weekDay: formData.week_day,
+      microNumber: formData.micro_num,
+      objective: formData.objective || undefined,
       teamA: {
         name: teamA,
         players: playersA
@@ -347,12 +356,9 @@ export default function RegisterDataScreen() {
       },
     };
 
-    // 2. Guardar en el Store y obtener el matchId generado
     const matchId = setInitialMatchData(matchConfig);
     console.log(`Partido creado: ${matchId}`);
-
-    // 3. Navegar a la pantalla de juego (sin parámetros)
-    router.push("/game"); // Ajusta la ruta a tu pantalla de marcador
+    router.push("/game");
   };
 
   const updatePlayer = (
@@ -539,10 +545,6 @@ export default function RegisterDataScreen() {
 
   return (
     <SafeAreaView style={tw`flex-1 bg-white`} edges={["top"]}>
-      {/* REEMPLAZO DEL HEADER MANUAL:
-          - dark={false} para que los iconos sean azules/oscuros sobre fondo blanco.
-          - showQuickNav={true} para tener el menú de hamburguesa a la derecha.
-      */}
       <HeaderMenu
         title="REGISTRO"
         dark={false}

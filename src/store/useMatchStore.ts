@@ -35,20 +35,25 @@ export interface MatchConfig {
   matchNumber: number;
   branch: "M" | "F";
   eventType: string;
-  teamA: {
-    name: string;
-    players: { number: string; fullName: string }[]; // ← ahora objetos
-  };
-  teamB: {
-    name: string;
-    players: { number: string; fullName: string }[]; // ← ahora objetos
-  };
+  startTime?: string; // solo oficial
+  place?: string; // oficial, interno, externo
+  denomination?: string; // oficial
+  // Interno / Externo / Entrenamiento
+  meso?: string;
+  micro?: string;
+  weekDay?: string;
+  microNumber?: string;
+  // Solo entrenamiento
+  objective?: string;
+  // Equipos
+  teamA: { name: string; players: { number: string; fullName: string }[] };
+  teamB: { name: string; players: { number: string; fullName: string }[] };
 }
 
 /** El objeto Match completo */
 export interface Match {
   id: string;
-  status: "en_vivo" | "parcial" | "finalizado";
+  status: "in_progress" | "partial" | "finished";
   config: MatchConfig;
   score: {
     setsA: number;
@@ -90,7 +95,7 @@ export interface MatchStore {
   clearCurrentRally: () => void; // elimina el rally en curso
 
   // Gestión de partidos guardados
-  saveCurrentMatch: (status: "parcial" | "finalizado") => void;
+  saveCurrentMatch: (status: "partial" | "finished") => void;
   loadMatch: (matchId: string) => void;
   deleteMatch: (matchId: string) => void;
 }
@@ -120,7 +125,7 @@ export const useMatchStore = create<MatchStore>()(
         const id = generateMatchId(config);
         const newMatch: Match = {
           id,
-          status: "en_vivo",
+          status: "in_progress",
           config,
           score: {
             setsA: 0,
@@ -358,7 +363,7 @@ export const useMatchStore = create<MatchStore>()(
           const match = state.savedMatches.find((m) => m.id === matchId);
           if (!match) return state;
           return {
-            currentMatch: { ...match, status: "en_vivo" },
+            currentMatch: { ...match, status: "in_progress" },
             savedMatches: state.savedMatches.filter((m) => m.id !== matchId),
           };
         }),

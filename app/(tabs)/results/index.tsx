@@ -1,45 +1,53 @@
+// app/(tabs)/results/index.tsx
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import React, { useMemo } from "react";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
-
-// Definimos la forma de nuestros datos para que TS no se queje
-interface EventResult {
-  id: string;
-  type: string;
-  title: string;
-  date: string;
-}
-
-const MOCK_RESULTS: EventResult[] = [
-  { id: "1", type: "oficial", title: "Final Copa Verano", date: "2026-04-20" },
-  {
-    id: "2",
-    type: "entrenamiento",
-    title: "Sesión Técnica Recepción",
-    date: "2026-04-21",
-  },
-  { id: "3", type: "interno", title: "Amistoso A vs B", date: "2026-04-22" },
-  { id: "4", type: "oficial", title: "Liga Regional J1", date: "2026-04-23" },
-];
+import { useMatchStore, type Match } from "../../../src/store/useMatchStore";
 
 export default function ResultsScreen() {
-  const { filter } = useLocalSearchParams(); // Recibe el parámetro del menú
+  const { filter } = useLocalSearchParams<{ filter?: string }>();
   const router = useRouter();
-  const [filteredData, setFilteredData] = useState<EventResult[]>([]);
+  const savedMatches = useMatchStore((s) => s.savedMatches);
 
-  useEffect(() => {
-    // Filtramos los datos falsos basándonos en el 'filter' que llega por URL
-    const results = MOCK_RESULTS.filter((item) => item.type === filter);
-    setFilteredData(results);
-  }, [filter]);
+  // Filtramos partidos finalizados, y opcionalmente por tipo de evento
+  const finishedMatches = useMemo(() => {
+    return savedMatches.filter((m) => {
+      if (m.status !== "finished") return false;
+      if (filter && m.config.eventType !== filter) return false;
+      return true;
+    });
+  }, [savedMatches, filter]);
+
+  const getWinnerText = (match: Match) => {
+    if (match.score.setsA === 2) return `Ganador: ${match.config.teamA.name}`;
+    if (match.score.setsB === 2) return `Ganador: ${match.config.teamB.name}`;
+    return "Resultado no definido";
+  };
+
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handleViewDetails = (match: Match) => {
+    router.push({
+      pathname: "/(tabs)/results/[matchId]",
+      params: { matchId: match.id },
+    });
+  };
 
   return (
     <SafeAreaView style={tw`flex-1 bg-white`} edges={["top"]}>
       <HeaderMenu
-        title={`RESULTADOS: ${String(filter).toUpperCase()}`}
+        title={`RESULTADOS${filter ? `: ${filter.toUpperCase()}` : ""}`}
         dark={false}
         showQuickNav={true}
         onBack={() => router.replace("/(tabs)/menu")}
@@ -51,19 +59,32 @@ export default function ResultsScreen() {
         </Text>
 
         <FlatList
-          data={filteredData}
+          data={finishedMatches}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View
-              style={tw`bg-slate-50 p-4 rounded-2xl mb-3 border border-slate-100 shadow-sm`}
+            <TouchableOpacity
+              onPress={() => handleViewDetails(item)}
+              style={tw`bg-slate-50 p-4 rounded-2xl mb-3 border border-slate-100 shadow-sm flex-row justify-between items-center`}
             >
-              <Text style={tw`font-bold text-[#003366] text-lg`}>
-                {item.title}
-              </Text>
-              <Text style={tw`text-slate-400 text-xs uppercase font-bold`}>
-                {item.date}
-              </Text>
-            </View>
+              <View style={tw`flex-1`}>
+                <Text style={tw`font-bold text-[#003366] text-base`}>
+                  {item.config.tournament || "Sin nombre"}
+                </Text>
+                <Text style={tw`text-slate-500 text-xs`}>
+                  {item.config.teamA.name} {item.score.setsA} -{" "}
+                  {item.score.setsB} {item.config.teamB.name}
+                </Text>
+                <Text style={tw`text-green-600 text-xs font-black uppercase`}>
+                  {getWinnerText(item)}
+                </Text>
+                <Text
+                  style={tw`text-slate-400 text-xs uppercase font-bold mt-1`}
+                >
+                  {formatDate(item.config.date)}
+                </Text>
+              </View>
+              <Ionicons name="eye-outline" size={20} color="#003366" />
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <Text style={tw`text-center text-slate-400 mt-10`}>

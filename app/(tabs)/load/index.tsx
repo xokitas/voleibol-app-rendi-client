@@ -1,7 +1,8 @@
-// app/(tabs)/load/index.tsx (o la ruta que uses)
+// app/(tabs)/load/index.tsx
+import CustomModal from "@/components/CustomModal";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
-import { Alert, FlatList, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
@@ -14,32 +15,75 @@ export default function LoadMatchScreen() {
   const savedMatches = useMatchStore((s) => s.savedMatches);
   const loadMatch = useMatchStore((s) => s.loadMatch);
   const deleteMatch = useMatchStore((s) => s.deleteMatch);
+  const currentMatch = useMatchStore((s) => s.currentMatch);
+
+  // Estado unificado para el modal de confirmación
+  const [modal, setModal] = useState<{
+    visible: boolean;
+    type: "resume" | "delete" | null;
+    matchId: string;
+    title: string;
+    message: string;
+    confirmText: string;
+    typeModal: "warning" | "danger" | "info";
+  }>({
+    visible: false,
+    type: null,
+    matchId: "",
+    title: "",
+    message: "",
+    confirmText: "",
+    typeModal: "warning",
+  });
 
   // Filtramos partidos 'parcial' y, opcionalmente, por tipo de evento
   const pendingMatches = savedMatches.filter((m) => {
-    if (m.status !== "parcial") return false;
+    if (m.status !== "partial") return false;
     if (filter && m.config.eventType !== filter) return false;
     return true;
   });
 
-  const handleResume = (matchId: string) => {
-    loadMatch(matchId);
-    router.push("/(tabs)/game"); // o la ruta de la pantalla de juego
+  // Al pulsar Reanudar
+  const handleResumePress = (matchId: string) => {
+    if (currentMatch) {
+      setModal({
+        visible: true,
+        type: "resume",
+        matchId,
+        title: "Partido en curso",
+        message:
+          "Si cargas este partido, el partido actual se perderá. ¿Deseas continuar?",
+        confirmText: "Cargar",
+        typeModal: "danger",
+      });
+    } else {
+      loadMatch(matchId);
+      router.push("/(tabs)/game");
+    }
   };
 
-  const handleDelete = (matchId: string) => {
-    Alert.alert(
-      "Eliminar partido",
-      "¿Estás seguro de que quieres borrar este partido guardado?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => deleteMatch(matchId),
-        },
-      ],
-    );
+  // Al pulsar Eliminar
+  const handleDeletePress = (matchId: string) => {
+    setModal({
+      visible: true,
+      type: "delete",
+      matchId,
+      title: "Eliminar partido",
+      message: "¿Estás seguro de que quieres borrar este partido guardado?",
+      confirmText: "Eliminar",
+      typeModal: "danger",
+    });
+  };
+
+  // Acción a ejecutar al confirmar el modal
+  const handleModalConfirm = () => {
+    if (modal.type === "resume") {
+      loadMatch(modal.matchId);
+      router.push("/(tabs)/game");
+    } else if (modal.type === "delete") {
+      deleteMatch(modal.matchId);
+    }
+    setModal({ ...modal, visible: false });
   };
 
   const getProgressText = (match: (typeof savedMatches)[0]) => {
@@ -70,7 +114,9 @@ export default function LoadMatchScreen() {
             >
               <View style={tw`flex-1`}>
                 <Text style={tw`font-bold text-[#003366] text-base`}>
-                  {item.config.tournament || "Sin nombre"}
+                  {item.config.tournament ||
+                    item.config.denomination ||
+                    "Sin nombre"}
                 </Text>
                 <Text style={tw`text-slate-500 text-xs`}>
                   {item.config.teamA.name} vs {item.config.teamB.name}
@@ -81,13 +127,13 @@ export default function LoadMatchScreen() {
               </View>
               <View style={tw`flex-row gap-2`}>
                 <TouchableOpacity
-                  onPress={() => handleResume(item.id)}
+                  onPress={() => handleResumePress(item.id)}
                   style={tw`bg-[#003366] px-3 py-2 rounded-lg`}
                 >
                   <Text style={tw`text-white text-xs font-bold`}>Reanudar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
+                  onPress={() => handleDeletePress(item.id)}
                   style={tw`border border-red-300 px-3 py-2 rounded-lg`}
                 >
                   <Text style={tw`text-red-500 text-xs font-bold`}>
@@ -104,6 +150,18 @@ export default function LoadMatchScreen() {
           }
         />
       </View>
+
+      {/* Modal unificado para Reanudar y Eliminar */}
+      <CustomModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.typeModal}
+        onConfirm={handleModalConfirm}
+        onCancel={() => setModal({ ...modal, visible: false })}
+        confirmText={modal.confirmText}
+        cancelText="Cancelar"
+      />
     </SafeAreaView>
   );
 }
