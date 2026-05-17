@@ -33,7 +33,7 @@ export default function UserMenu({ dark = false }: UserMenuProps) {
   return (
     <>
       {/* Botón gatillo (siempre visible) */}
-      <View style={tw`relative z-50`} pointerEvents="auto">
+      <View style={[tw`relative z-50`, { pointerEvents: "auto" }]}>
         <TouchableOpacity
           onPress={() => setIsVisible(true)}
           activeOpacity={0.7}

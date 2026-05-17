@@ -886,59 +886,107 @@ export default function GameScreenWeb() {
                       />
                     </TouchableOpacity>
                   )}
+                  {/* Tira de acciones */}
                   <View
                     style={tw`flex-row flex-wrap gap-2 items-center flex-1`}
                   >
-                    {currentRally.length === 0 ? (
+                    {currentRally.length === 0 && !pendingAction ? (
                       <Text
                         style={tw`text-slate-600 font-bold text-[10px] uppercase`}
                       >
                         Esperando Rally...
                       </Text>
                     ) : (
-                      currentRally.map((accion, idx) => (
-                        <TouchableOpacity
-                          key={idx}
-                          onPress={() => {
-                            editRallyAction(idx);
-                            setIsEditingMode(true);
-                          }}
-                          style={tw`bg-slate-900 px-2 py-1 rounded-lg border border-slate-700 flex-row items-center gap-2 active:bg-cyan-900/50 hover:border-cyan-500 transition-colors`}
-                        >
-                          <Text
-                            style={tw`text-cyan-500 font-black text-[10px]`}
+                      <>
+                        {/* Acciones ya confirmadas */}
+                        {currentRally.map((accion, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => {
+                              editRallyAction(idx);
+                              setIsEditingMode(true);
+                            }}
+                            style={tw`bg-slate-900 px-2 py-1 rounded-lg border border-slate-700 flex-row items-center gap-2 active:bg-cyan-900/50 hover:border-cyan-500 transition-colors`}
                           >
-                            {accion.playerId}
-                          </Text>
-                          <Text style={tw`text-white font-bold text-[10px]`}>
-                            {accion.subAction}
-                          </Text>
+                            <Text
+                              style={tw`text-cyan-500 font-black text-[10px]`}
+                            >
+                              {accion.playerId}
+                            </Text>
+                            <Text style={tw`text-white font-bold text-[10px]`}>
+                              {accion.subAction}
+                            </Text>
+                            <View
+                              style={tw`bg-slate-800 px-2 py-0.5 rounded flex-row items-center gap-1`}
+                            >
+                              <Text
+                                style={tw`text-slate-300 text-[10px] font-bold`}
+                              >
+                                {formatTicketZone(accion.origin)}
+                              </Text>
+                              <Ionicons
+                                name="arrow-forward"
+                                size={10}
+                                color="#fbbf24"
+                              />
+                              <Text
+                                style={tw`text-slate-300 text-[10px] font-bold`}
+                              >
+                                {formatTicketZone(accion.destination)}
+                              </Text>
+                            </View>
+                            <Text
+                              style={tw`text-yellow-500 font-black text-[11px]`}
+                            >
+                              {accion.value}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+
+                        {/* Pastilla de la acción en construcción (feedback en vivo) */}
+                        {pendingAction && (
                           <View
-                            style={tw`bg-slate-800 px-2 py-0.5 rounded flex-row items-center gap-1`}
+                            style={tw`bg-slate-900/80 border border-dashed border-cyan-600 px-2 py-1 rounded-lg flex-row items-center gap-2`}
                           >
                             <Text
-                              style={tw`text-slate-300 text-[10px] font-bold`}
+                              style={tw`text-cyan-500 font-black text-[10px]`}
                             >
-                              {formatTicketZone(accion.origin)}
+                              {pendingAction.playerId}
                             </Text>
-                            <Ionicons
-                              name="arrow-forward"
-                              size={10}
-                              color="#fbbf24"
-                            />
-                            <Text
-                              style={tw`text-slate-300 text-[10px] font-bold`}
-                            >
-                              {formatTicketZone(accion.destination)}
+                            <Text style={tw`text-white font-bold text-[10px]`}>
+                              {pendingAction.subAction}
                             </Text>
+                            {pendingAction.value !== undefined && (
+                              <Text
+                                style={tw`text-yellow-500 font-black text-[11px]`}
+                              >
+                                {pendingAction.value}
+                              </Text>
+                            )}
+                            {pendingAction.origin && (
+                              <View
+                                style={tw`bg-slate-800 px-2 py-0.5 rounded flex-row items-center gap-1`}
+                              >
+                                <Text
+                                  style={tw`text-slate-300 text-[10px] font-bold`}
+                                >
+                                  {formatTicketZone(pendingAction.origin)}
+                                </Text>
+                                <Ionicons
+                                  name="arrow-forward"
+                                  size={10}
+                                  color="#fbbf24"
+                                />
+                                <Text
+                                  style={tw`text-slate-500 text-[10px] font-bold`}
+                                >
+                                  ?
+                                </Text>
+                              </View>
+                            )}
                           </View>
-                          <Text
-                            style={tw`text-yellow-500 font-black text-[11px]`}
-                          >
-                            {accion.value}
-                          </Text>
-                        </TouchableOpacity>
-                      ))
+                        )}
+                      </>
                     )}
                   </View>
                   {currentRally.length > 0 && (

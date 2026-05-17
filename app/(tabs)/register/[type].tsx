@@ -166,7 +166,8 @@ const SmartSelect = ({
           {options.map((opt: string) => (
             <TouchableOpacity
               key={opt}
-              onPress={() => {
+              onPress={(event) => {
+                event.stopPropagation(); // evita que el clic cierre el menú
                 onSelect(opt);
                 setIsOpen(null);
               }}
@@ -550,23 +551,6 @@ export default function RegisterDataScreen() {
         showQuickNav={true}
         onBack={() => router.replace("/(tabs)/menu")}
       />
-
-      {/* Overlay invisible para cerrar menús al hacer clic fuera */}
-      {openMenu !== null && (
-        <TouchableOpacity
-          activeOpacity={1}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 9998, // justo debajo de los menús (zIndex: 9999)
-            backgroundColor: "transparent",
-          }}
-          onPress={() => setOpenMenu(null)}
-        />
-      )}
 
       <ScrollView
         contentContainerStyle={tw`p-5 pt-16 pb-20`}
