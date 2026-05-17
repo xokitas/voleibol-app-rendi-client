@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import HeaderMenu from "../../../components/HeaderMenu";
 import ReferencePanel from "../../../components/ReferencePanel";
 import { useGameTimers } from "../../../hooks/useGameTimers";
@@ -115,7 +115,7 @@ const CourtZone = ({
   </TouchableOpacity>
 );
 
-const StatMiniBox = ({
+const MiniStatBox = ({
   label,
   value,
   color,
@@ -125,12 +125,12 @@ const StatMiniBox = ({
   color: string;
 }) => (
   <View
-    style={tw`flex-1 bg-slate-950 p-2 rounded-lg border border-slate-800/50`}
+    style={tw`flex-1 min-w-[45px] bg-slate-950 p-1 rounded border border-slate-800/50`}
   >
-    <Text style={tw`text-slate-500 text-[8px] uppercase font-bold`}>
+    <Text style={tw`text-slate-500 text-[7px] uppercase font-bold`}>
       {label}
     </Text>
-    <Text style={tw`${color} text-sm font-black`}>{value}%</Text>
+    <Text style={tw`${color} text-[10px] font-black`}>{value}%</Text>
   </View>
 );
 
@@ -184,7 +184,7 @@ export default function GameScreenWeb() {
   const [origin, setOrigin] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [blink, setBlink] = useState(false);
-  const { getPlayerStats } = useStats(rallyHistory || []);
+  const { getPlayerStats } = useStats(rallyHistory || [], actionAllowedValues);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -912,8 +912,8 @@ export default function GameScreenWeb() {
               {/* PANEL DE ESTADÍSTICAS */}
               <View
                 style={[
-                  tw`bg-slate-950 border-l border-slate-800 transition-all duration-500 overflow-hidden`,
-                  { width: isStatsOpen ? 500 : 60 },
+                  tw`bg-slate-950 border-l border-slate-800`,
+                  { width: isStatsOpen ? 500 : 60, height: "100%" }, // altura completa forzada
                 ]}
               >
                 <TouchableOpacity
@@ -927,15 +927,17 @@ export default function GameScreenWeb() {
                   />
                 </TouchableOpacity>
 
-                <View style={tw`p-4 ${isStatsOpen ? "w-[500px]" : "w-14"}`}>
-                  <Text
-                    style={tw`text-white font-black text-sm uppercase mb-6 border-b border-slate-800 pb-2`}
-                  >
-                    {isStatsOpen ? "Análisis de Rendimiento" : "ST"}
-                  </Text>
-
-                  {isStatsOpen ? (
-                    <View style={tw`flex-col gap-4`}>
+                {isStatsOpen ? (
+                  <View style={tw`flex-1 p-4 pt-12`}>
+                    <Text
+                      style={tw`text-white font-black text-sm uppercase mb-4 border-b border-slate-800 pb-2`}
+                    >
+                      Análisis de Rendimiento
+                    </Text>
+                    <ScrollView
+                      contentContainerStyle={tw`flex-col gap-3 pb-4`}
+                      style={tw`flex-1`}
+                    >
                       {[
                         ...(eventData?.teamA?.players || []).map((p) => ({
                           ...p,
@@ -945,81 +947,89 @@ export default function GameScreenWeb() {
                           ...p,
                           team: "B",
                         })),
-                      ]
-                        .slice(0, 4)
-                        .map((player, idx) => {
-                          const pId = `${player.team}-${player.number}`;
-                          const stats = getPlayerStats(pId);
-
-                          return (
-                            <TouchableOpacity
-                              key={idx}
-                              onPress={() => setIsEditingMode(!isEditingMode)}
-                              style={tw`bg-slate-900/50 p-3 rounded-xl border border-slate-800`}
+                      ].map((player, idx) => {
+                        const pId = `${player.team}-${player.number}`;
+                        const stats = getPlayerStats(pId);
+                        if (!stats) return null;
+                        const isTeamA = player.team === "A";
+                        const borderColor = isTeamA
+                          ? "border-blue-500"
+                          : "border-red-500";
+                        const bgColor = isTeamA
+                          ? "bg-blue-900/20"
+                          : "bg-red-900/20";
+                        return (
+                          <View
+                            key={idx}
+                            style={tw`${bgColor} p-2 rounded-xl border ${borderColor}`}
+                          >
+                            <View
+                              style={tw`flex-row justify-between items-center mb-1`}
                             >
+                              <Text
+                                style={tw`${isTeamA ? "text-blue-400" : "text-red-400"} font-black text-[10px]`}
+                              >
+                                #{player.number} {player.fullName}
+                              </Text>
                               <View
-                                style={tw`flex-row justify-between items-center mb-2`}
+                                style={tw`bg-slate-800 px-1 py-0.5 rounded`}
                               >
                                 <Text
-                                  style={tw`text-cyan-400 font-black text-xs`}
+                                  style={tw`text-white font-bold text-[9px]`}
                                 >
-                                  #{player.number} {player.fullName}
+                                  {stats.general.efficiency}% EFF
                                 </Text>
-                                <View
-                                  style={tw`bg-cyan-900/30 px-2 py-0.5 rounded`}
-                                >
-                                  <Text
-                                    style={tw`text-white font-bold text-[10px]`}
-                                  >
-                                    {(stats?.general?.efficiency || 0).toFixed(
-                                      1,
-                                    )}
-                                    % EFF
-                                  </Text>
-                                </View>
                               </View>
-
-                              <View style={tw`flex-row justify-between gap-2`}>
-                                <StatMiniBox
-                                  label="ATQ"
-                                  value={stats?.attack?.eff || 0}
-                                  color="text-yellow-400"
-                                />
-                                <StatMiniBox
-                                  label="DEF"
-                                  value={stats?.defense?.eff || 0}
-                                  color="text-green-400"
-                                />
-                                <StatMiniBox
-                                  label="REC"
-                                  value={stats?.receive?.eff || 0}
-                                  color="text-purple-400"
-                                />
-                              </View>
-
-                              {isEditingMode && (
-                                <View
-                                  style={tw`mt-3 pt-3 border-t border-slate-800`}
-                                >
-                                  <Text style={tw`text-slate-500 text-[9px]`}>
-                                    Total Acciones:{" "}
-                                    {stats?.general?.totalActions || 0} |
-                                    Errores: {stats?.general?.errors || 0}
-                                  </Text>
-                                </View>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                    </View>
-                  ) : (
-                    <View style={tw`items-center gap-6`}>
-                      <Ionicons name="person" size={18} color="#475569" />
-                      <Ionicons name="trending-up" size={18} color="#475569" />
-                      <Ionicons name="pie-chart" size={18} color="#475569" />
-                    </View>
-                  )}
-                </View>
+                            </View>
+                            {/* Grid de categorías */}
+                            <View style={tw`flex-row flex-wrap gap-1`}>
+                              <MiniStatBox
+                                label="SRV"
+                                value={stats.serve.eff}
+                                color="text-blue-400"
+                              />
+                              <MiniStatBox
+                                label="REC"
+                                value={stats.receive.eff}
+                                color="text-green-400"
+                              />
+                              <MiniStatBox
+                                label="SET"
+                                value={stats.set.eff}
+                                color="text-pink-400"
+                              />
+                              <MiniStatBox
+                                label="ATK"
+                                value={stats.attack.eff}
+                                color="text-yellow-400"
+                              />
+                              <MiniStatBox
+                                label="BLK"
+                                value={stats.block.eff}
+                                color="text-purple-400"
+                              />
+                              <MiniStatBox
+                                label="DEF"
+                                value={stats.defense.eff}
+                                color="text-emerald-400"
+                              />
+                            </View>
+                            <Text style={tw`text-slate-500 text-[8px] mt-1`}>
+                              Acciones: {stats.general.totalActions} | Errores:{" "}
+                              {stats.general.errors}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                ) : (
+                  <View style={tw`items-center gap-6 p-4 pt-12`}>
+                    <Ionicons name="person" size={18} color="#475569" />
+                    <Ionicons name="trending-up" size={18} color="#475569" />
+                    <Ionicons name="pie-chart" size={18} color="#475569" />
+                  </View>
+                )}
               </View>
             </View>
             {/* FIN SECCIÓN CENTRAL */}

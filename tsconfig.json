@@ -7,7 +7,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": [
-    "node_modules" // ← esto ignora todos los tsconfig internos
-  ]
+  "exclude": ["node_modules"]
 }
