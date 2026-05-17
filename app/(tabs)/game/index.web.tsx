@@ -220,6 +220,11 @@ export default function GameScreenWeb() {
 
       timers.stopRealTime();
       timers.stopTotalTime();
+
+      // Guardar automáticamente como finalizado
+      saveCurrentMatch("finished");
+      // Redirigir al menú (opcional, para que no se quede en la pantalla de juego vacía)
+      router.replace("/(tabs)/menu");
     }
   }, [sets.A, sets.B]);
 
@@ -1091,7 +1096,13 @@ export default function GameScreenWeb() {
                         : timers.startRealTime();
                     }
                   }}
-                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${!hasStarted ? "bg-green-600 border-green-800" : timers.isRealTimeActive ? "bg-orange-600 border-orange-800" : "bg-green-600 border-green-800"}`}
+                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${
+                    !hasStarted
+                      ? "bg-green-600 border-green-800"
+                      : timers.isRealTimeActive
+                        ? "bg-orange-600 border-orange-800"
+                        : "bg-green-600 border-green-800"
+                  }`}
                 >
                   <Ionicons
                     name={
@@ -1113,15 +1124,18 @@ export default function GameScreenWeb() {
                   </Text>
                 </TouchableOpacity>
 
+                {/* BOTÓN FINAL PARCIAL */}
                 <TouchableOpacity
                   onPress={() => {
                     if (
-                      window.confirm("¿Deseas finalizar el parcial actual?")
+                      window.confirm(
+                        "¿Deseas guardar el parcial actual para continuar después?",
+                      )
                     ) {
-                      saveCurrentMatch("parcial"); // guarda el partido y limpia currentMatch
-                      timers.stopRealTime(); // detiene el cronómetro de juego
-                      timers.stopTotalTime(); // detiene el cronómetro total
-                      router.replace("/(tabs)/menu"); // vuelve al menú principal
+                      saveCurrentMatch("partial");
+                      timers.stopRealTime();
+                      timers.stopTotalTime();
+                      router.replace("/(tabs)/menu");
                     }
                   }}
                   style={tw`flex-row items-center gap-2 px-5 py-2 bg-slate-800 rounded-xl border-b-4 border-slate-950`}
@@ -1129,6 +1143,28 @@ export default function GameScreenWeb() {
                   <Ionicons name="stop-circle" size={18} color="#f87171" />
                   <Text style={tw`text-white font-black text-[11px] uppercase`}>
                     Final Parcial
+                  </Text>
+                </TouchableOpacity>
+
+                {/* NUEVO: BOTÓN FINALIZAR PARTIDO */}
+                <TouchableOpacity
+                  onPress={() => {
+                    if (
+                      window.confirm(
+                        "¿Finalizar el partido definitivamente? Esta acción no se puede deshacer.",
+                      )
+                    ) {
+                      saveCurrentMatch("finished");
+                      timers.stopRealTime();
+                      timers.stopTotalTime();
+                      router.replace("/(tabs)/menu");
+                    }
+                  }}
+                  style={tw`flex-row items-center gap-2 px-5 py-2 bg-blue-600 rounded-xl border-b-4 border-blue-800`}
+                >
+                  <Ionicons name="checkmark-circle" size={18} color="white" />
+                  <Text style={tw`text-white font-black text-[11px] uppercase`}>
+                    Finalizar
                   </Text>
                 </TouchableOpacity>
               </View>

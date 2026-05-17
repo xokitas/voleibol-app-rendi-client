@@ -333,6 +333,7 @@ export default function RegisterDataScreen() {
       matchNumber: parseInt(formData.micro_num) || 1,
       branch,
       eventType: type as string,
+      startTime: formData.start_time.toTimeString().substring(0, 5),
       teamA: {
         name: teamA,
         players: playersA

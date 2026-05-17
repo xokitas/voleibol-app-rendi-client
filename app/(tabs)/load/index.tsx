@@ -17,7 +17,7 @@ export default function LoadMatchScreen() {
 
   // Filtramos partidos 'parcial' y, opcionalmente, por tipo de evento
   const pendingMatches = savedMatches.filter((m) => {
-    if (m.status !== "parcial") return false;
+    if (m.status !== "partial") return false;
     if (filter && m.config.eventType !== filter) return false;
     return true;
   });
