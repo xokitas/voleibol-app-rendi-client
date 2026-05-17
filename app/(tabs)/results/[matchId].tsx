@@ -1,3 +1,4 @@
+// app/(tabs)/results/[matchId].tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -39,13 +40,11 @@ const actionAllowedValues: Record<string, number[]> = {
   Rdjn: [4],
   Rdpmp: [4],
   Rd: [4],
-  // Añade aquí cualquier otra sub‑acción que utilices
 };
 
-// Obtener el valor máximo de una sub‑acción
 const getMaxValue = (subAction: string): number => {
   const allowed = actionAllowedValues[subAction];
-  if (!allowed) return 4; // por defecto asume 4
+  if (!allowed) return 4;
   return Math.max(...allowed);
 };
 
@@ -104,14 +103,14 @@ export default function MatchDetailScreen() {
       {
         totalActions: number;
         errors: number;
-        effectiveness: number; // efectividad global neta (%)
+        effectiveness: number;
         categories: Record<
           string,
           {
             total: number;
-            positive: number; // número de acciones con valor máximo
-            negative: number; // número de acciones con valor 0
-            effectiveness: number; // ((positive - negative) / total) * 100
+            positive: number;
+            negative: number;
+            effectiveness: number;
             subs: Record<
               string,
               {
@@ -126,7 +125,6 @@ export default function MatchDetailScreen() {
       }
     > = {};
 
-    // Inicializar estructura para cada jugador
     allPlayers.forEach((p) => {
       const id = `${p.team}-${p.number}`;
       statsMap[id] = {
@@ -137,7 +135,6 @@ export default function MatchDetailScreen() {
       };
     });
 
-    // Recorrer todo el historial del partido
     match.history.forEach((set) => {
       set.rallies.forEach((rally) => {
         rally.actions.forEach((action: RallyAction) => {
@@ -154,7 +151,6 @@ export default function MatchDetailScreen() {
           const isPositive = (action.value ?? 0) === maxVal;
           const isNegative = (action.value ?? 0) === 0;
 
-          // Inicializar categoría si no existe
           if (!player.categories[cat]) {
             player.categories[cat] = {
               total: 0,
@@ -168,7 +164,6 @@ export default function MatchDetailScreen() {
           if (isPositive) player.categories[cat].positive++;
           if (isNegative) player.categories[cat].negative++;
 
-          // Sub‑acción
           if (!player.categories[cat].subs[sub]) {
             player.categories[cat].subs[sub] = {
               total: 0,
@@ -184,7 +179,6 @@ export default function MatchDetailScreen() {
       });
     });
 
-    // Calcular efectividades netas
     Object.keys(statsMap).forEach((id) => {
       const player = statsMap[id];
       let totalPos = 0,
@@ -220,10 +214,9 @@ export default function MatchDetailScreen() {
     if (!stats) return null;
     const [expanded, setExpanded] = useState(false);
 
-    // Datos para el radar: efectividad neta por categoría (puede ser negativo)
     const radarData = Object.entries(stats.categories).map(([cat, data]) => ({
       label: cat.replace("ERRORES_", "E.").substring(0, 4),
-      value: Math.max(0, data.effectiveness), // el radar solo admite 0-100, trunca negativos a 0
+      value: Math.max(0, data.effectiveness),
     }));
 
     const color = player.team === "A" ? "#3b82f6" : "#ef4444";
@@ -254,11 +247,9 @@ export default function MatchDetailScreen() {
 
         {expanded && (
           <View style={tw`px-4 pb-4 flex-row`}>
-            {/* Radar a la izquierda */}
             <View style={tw`w-40 h-40 items-center justify-center`}>
               <RadarChart data={radarData} size={160} color={color} />
             </View>
-            {/* Listado de sub‑acciones a la derecha */}
             <View style={tw`flex-1 ml-4`}>
               {Object.entries(stats.categories).map(([cat, data]) => (
                 <View key={cat} style={tw`mb-2`}>
@@ -333,6 +324,37 @@ export default function MatchDetailScreen() {
                 Partido #{match.config.matchNumber}
               </Text>
             </View>
+
+            {/* Campos adicionales según tipo de evento */}
+            {match.config.place && (
+              <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
+                <Text style={tw`text-xs font-bold text-slate-700`}>
+                  Lugar: {match.config.place}
+                </Text>
+              </View>
+            )}
+            {match.config.denomination && (
+              <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
+                <Text style={tw`text-xs font-bold text-slate-700`}>
+                  {match.config.denomination}
+                </Text>
+              </View>
+            )}
+            {match.config.meso && (
+              <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
+                <Text style={tw`text-xs font-bold text-slate-700`}>
+                  {match.config.meso} / {match.config.micro} (
+                  {match.config.weekDay} #{match.config.microNumber})
+                </Text>
+              </View>
+            )}
+            {match.config.objective && (
+              <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
+                <Text style={tw`text-xs font-bold text-slate-700`}>
+                  Objetivo: {match.config.objective}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Marcador final */}

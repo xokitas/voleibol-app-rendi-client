@@ -35,15 +35,19 @@ export interface MatchConfig {
   matchNumber: number;
   branch: "M" | "F";
   eventType: string;
-  startTime: string;
-  teamA: {
-    name: string;
-    players: { number: string; fullName: string }[]; // ← ahora objetos
-  };
-  teamB: {
-    name: string;
-    players: { number: string; fullName: string }[]; // ← ahora objetos
-  };
+  startTime?: string; // solo oficial
+  place?: string; // oficial, interno, externo
+  denomination?: string; // oficial
+  // Interno / Externo / Entrenamiento
+  meso?: string;
+  micro?: string;
+  weekDay?: string;
+  microNumber?: string;
+  // Solo entrenamiento
+  objective?: string;
+  // Equipos
+  teamA: { name: string; players: { number: string; fullName: string }[] };
+  teamB: { name: string; players: { number: string; fullName: string }[] };
 }
 
 /** El objeto Match completo */

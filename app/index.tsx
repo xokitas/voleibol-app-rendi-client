@@ -12,13 +12,18 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      <View
-        style={tw`absolute top-10 left-0 right-0 flex-col items-center gap-2`}
-      >
-        <UserMenu />
-        <Text style={tw`text-[10px] font-black text-slate-400 uppercase`}>
-          Iniciar Sesión
-        </Text>
+      {/* Bloque superior centrado: icono + texto sin superposición táctil */}
+      <View style={tw`absolute top-10 left-0 right-0 items-center`}>
+        {/* Contenedor de altura fija para el icono (evita que se expanda y tape el texto) */}
+        <View style={tw`h-10 justify-end`}>
+          <UserMenu />
+        </View>
+        {/* Botón de texto separado verticalmente */}
+        <TouchableOpacity onPress={() => router.push("/login")}>
+          <Text style={tw`text-[10px] font-black text-slate-400 uppercase`}>
+            Iniciar Sesión
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.mainContent}>
@@ -51,6 +56,7 @@ export default function WelcomeScreen() {
           <Text style={styles.authorName}>
             Est. Dániells Lázaro García Parra
           </Text>
+          <Text style={styles.authorName}>MSc. Yadel Camilo Mestre</Text>
         </View>
       </View>
     </SafeAreaView>

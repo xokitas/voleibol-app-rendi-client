@@ -238,6 +238,7 @@ export default function GameScreenWeb() {
   useEffect(() => {
     if (selectedPlayerId) {
       timers.startRealTime();
+      timers.startTotalTime();
     }
   }, [selectedPlayerId]);
 
