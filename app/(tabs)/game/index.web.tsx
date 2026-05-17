@@ -1,6 +1,8 @@
+// app/(tabs)/game/index.web.tsx
+import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import HeaderMenu from "../../../components/HeaderMenu";
 import ReferencePanel from "../../../components/ReferencePanel";
@@ -11,7 +13,7 @@ import tw from "../../../lib/tailwind";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 
 // ==========================================
-// 1. CONFIGURACIÓN Y CONSTANTES
+// 1. CONFIGURACIÓN Y CONSTANTES (sin cambios)
 // ==========================================
 
 const categoryColors: Record<string, string> = {
@@ -78,7 +80,7 @@ const zoneCoords: Record<string, { x: number; y: number }> = {
 };
 
 // ==========================================
-// 2. COMPONENTES AUXILIARES
+// 2. COMPONENTES AUXILIARES (sin cambios)
 // ==========================================
 
 const CourtZone = ({
@@ -135,25 +137,20 @@ const MiniStatBox = ({
 );
 
 // ==========================================
-// 3. COMPONENTE PRINCIPAL (PANTALLA)
+// 3. COMPONENTE PRINCIPAL
 // ==========================================
 
 export default function GameScreenWeb() {
   const router = useRouter();
-
-  // --- OBTENER DATOS DEL STORE ---
   const currentMatch = useMatchStore((s) => s.currentMatch);
   const saveCurrentMatch = useMatchStore((s) => s.saveCurrentMatch);
-  const eventData = currentMatch?.config; // { teamA, teamB, etc. }
+  const eventData = currentMatch?.config;
 
   // Redirigir si no hay partido cargado
   useEffect(() => {
-    if (!currentMatch) {
-      router.replace("/(tabs)/menu");
-    }
+    if (!currentMatch) router.replace("/(tabs)/menu");
   }, [currentMatch]);
 
-  // --- HOOK DE SCOUTING ---
   const {
     score,
     sets,
@@ -177,6 +174,41 @@ export default function GameScreenWeb() {
 
   const timers = useGameTimers();
 
+  // ================== ESTADO DEL MODAL ==================
+  const [modal, setModal] = useState({
+    visible: false,
+    title: "",
+    message: "",
+    type: "warning" as "warning" | "danger" | "info",
+    onConfirm: () => {},
+    onSecondary: undefined as (() => void) | undefined,
+    confirmText: "Aceptar",
+    secondaryText: undefined as string | undefined,
+  });
+
+  const showModal = (
+    title: string,
+    message: string,
+    type: "warning" | "danger" | "info",
+    onConfirm: () => void,
+    onSecondary?: () => void,
+    confirmText = "Aceptar",
+    secondaryText?: string,
+  ) => {
+    setModal({
+      visible: true,
+      title,
+      message,
+      type,
+      onConfirm,
+      onSecondary,
+      confirmText,
+      secondaryText,
+    });
+  };
+
+  const hideModal = () => setModal((prev) => ({ ...prev, visible: false }));
+
   // Estados locales
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
@@ -188,6 +220,13 @@ export default function GameScreenWeb() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = useCallback((e: any) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setMousePos({ x, y });
+  }, []);
 
   // Efectos
   useEffect(() => {
@@ -201,38 +240,47 @@ export default function GameScreenWeb() {
     return () => clearInterval(interval);
   }, [mustSwitchSide]);
 
-  // 1. Manejo de fin de SET y cambio de lado inicial
+  // Fin de set (modal informativo)
   useEffect(() => {
     if (currentSet > 1) {
       timers.stopRealTime();
-      alert(
-        `¡SET FINALIZADO! Los equipos deben cambiar de lado para el Set ${currentSet}.`,
+      showModal(
+        "¡SET FINALIZADO!",
+        `Los equipos deben cambiar de lado para el Set ${currentSet}.`,
+        "info",
+        () => {
+          hideModal();
+          toggleWind();
+        },
+        undefined,
+        "OK",
       );
-      toggleWind();
     }
   }, [currentSet]);
 
-  // 2. Manejo de fin de PARTIDO
+  // Fin de partido (modal informativo + guardado automático)
   useEffect(() => {
     if (sets.A === 2 || sets.B === 2) {
       const ganador = sets.A === 2 ? "EQUIPO A" : "EQUIPO B";
-      alert(`¡PARTIDO FINALIZADO! Ganador: ${ganador}`);
-
       timers.stopRealTime();
       timers.stopTotalTime();
-
-      // Guardar automáticamente como finalizado
-      saveCurrentMatch("finished");
-      // Redirigir al menú (opcional, para que no se quede en la pantalla de juego vacía)
-      router.replace("/(tabs)/menu");
+      showModal(
+        "¡PARTIDO FINALIZADO!",
+        `Ganador: ${ganador}`,
+        "info",
+        () => {
+          saveCurrentMatch("finished");
+          router.replace("/(tabs)/menu");
+        },
+        undefined,
+        "OK",
+      );
     }
   }, [sets.A, sets.B]);
 
-  // 3. Pausa automática en cada punto
+  // Pausa automática en cada punto
   useEffect(() => {
-    if (score.A > 0 || score.B > 0) {
-      timers.stopRealTime();
-    }
+    if (score.A > 0 || score.B > 0) timers.stopRealTime();
   }, [score.A, score.B]);
 
   useEffect(() => {
@@ -242,33 +290,28 @@ export default function GameScreenWeb() {
     }
   }, [selectedPlayerId]);
 
+  // Teclado numérico (sin cambios)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (pendingAction && pendingAction.value === undefined) {
         let val: number | null = null;
         if (e.key === "`" || e.key === "0" || e.key === "º") val = 0;
         else if (["1", "2", "3", "4"].includes(e.key)) val = parseInt(e.key);
-
         if (val !== null) {
           const allowed = actionAllowedValues[pendingAction.subAction] || [
             0, 1, 2, 3, 4,
           ];
-          if (allowed.includes(val)) {
-            confirmActionValue(val);
-          } else {
-            playErrorBuzzer();
-          }
+          if (allowed.includes(val)) confirmActionValue(val);
+          else playErrorBuzzer();
         } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
           playErrorBuzzer();
         }
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [pendingAction, confirmActionValue]);
 
-  // Utilidades
   const formatTicketZone = (z?: string) => {
     if (!z) return "z?";
     if (z.startsWith("A-")) return `a${z.slice(2)}`;
@@ -310,51 +353,83 @@ export default function GameScreenWeb() {
     }
   };
 
-  // handleAutoCommit actualizado (sin saveRallyToHistory)
+  // AutoCommit con modal de dos opciones para punto dudoso
   const handleAutoCommit = () => {
     if (currentRally.length === 0) return;
-
     const lastAction = currentRally[currentRally.length - 1];
     const teamOfAction = lastAction.playerId.startsWith("A") ? "A" : "B";
     const opponentTeam = teamOfAction === "A" ? "B" : "A";
 
-    let winner: "A" | "B";
     if (lastAction.value === 4) {
-      winner = teamOfAction;
+      commitPoint(teamOfAction);
     } else if (lastAction.value === 0) {
-      winner = opponentTeam;
+      commitPoint(opponentTeam);
     } else {
-      winner = window.confirm(`¿Punto para el equipo ${teamOfAction}?`)
-        ? teamOfAction
-        : opponentTeam;
-    }
-
-    commitPoint(winner); // ya cierra el rally y asigna el punto
-  };
-
-  const handleExit = (targetRoute?: string) => {
-    if (window.confirm("¿Deseas guardar los cambios antes de salir?")) {
-      localStorage.setItem(
-        "rendi_active_game",
-        JSON.stringify({
-          inProgress: true,
-          lastSaved: new Date().toISOString(),
-        }),
+      const nameA = eventData?.teamA?.name || "Equipo A";
+      const nameB = eventData?.teamB?.name || "Equipo B";
+      showModal(
+        "Punto del Rally",
+        `¿Qué equipo ganó el punto?`,
+        "warning",
+        () => commitPoint(teamOfAction), // Punto para el que atacó
+        () => commitPoint(opponentTeam), // Punto para el rival
+        teamOfAction === "A" ? nameA : nameB,
+        teamOfAction === "A" ? nameB : nameA,
       );
-      router.replace((targetRoute as any) || "/(tabs)/menu");
-    } else {
-      if (
-        window.confirm(
-          "¿Seguro que quieres salir sin guardar? Se perderán los datos actuales.",
-        )
-      ) {
-        clearRally();
-        localStorage.removeItem("rendi_active_game");
-        router.replace((targetRoute as any) || "/(tabs)/menu");
-      }
     }
   };
 
+  // Flecha atrás: salir sin guardar (solo se pierde el rally actual, el partido sigue en memoria)
+  const handleExit = () => {
+    showModal(
+      "Salir del partido",
+      "El rally actual se perderá. El partido permanecerá en curso y podrás volver más tarde.",
+      "warning",
+      () => {
+        // Limpiamos el rally en curso (opcional, para no dejar acciones a medias)
+        clearRally();
+        router.replace("/(tabs)/menu");
+      },
+      undefined,
+      "Salir",
+    );
+  };
+
+  // Botón Final Parcial
+  const handlePartialSave = () => {
+    showModal(
+      "Suspender Partido",
+      "¿Guardar el parcial actual para continuar después?",
+      "warning",
+      () => {
+        saveCurrentMatch("partial");
+        timers.stopRealTime();
+        timers.stopTotalTime();
+        router.replace("/(tabs)/menu");
+      },
+      undefined,
+      "Guardar",
+    );
+  };
+
+  // Botón Finalizar
+  const handleFinishMatch = () => {
+    showModal(
+      "Finalizar Partido",
+      "¿Finalizar el partido definitivamente? Esta acción no se puede deshacer.",
+      "danger",
+      () => {
+        saveCurrentMatch("finished");
+        timers.stopRealTime();
+        timers.stopTotalTime();
+        router.replace("/(tabs)/menu");
+      },
+      undefined,
+      "Finalizar",
+    );
+  };
+
+  // Renderizado de columnas
   const renderActionColumn = (
     title: string,
     category: string,
@@ -363,11 +438,12 @@ export default function GameScreenWeb() {
   ) => {
     const bgColor = categoryColors[category] || "bg-slate-800";
     const isAllowed = canPerformAction(category);
+    const columnStyle = isDouble
+      ? tw`flex-1 min-w-[35px] ${isStatsOpen ? "min-w-[150px]" : "max-w-[155px]"} ${!isAllowed ? "opacity-20" : ""}`
+      : tw`flex-1 min-w-[35px] max-w-[75px] ${!isAllowed ? "opacity-20" : ""}`;
 
     return (
-      <View
-        style={tw`flex-1 min-w-[35px] ${isDouble ? "max-w-[155px]" : "max-w-[75px]"} ${!isAllowed ? "opacity-20" : ""}`}
-      >
+      <View style={columnStyle}>
         <Text
           style={tw`text-slate-500 font-black text-[9px] uppercase mb-2 text-center`}
         >
@@ -379,10 +455,9 @@ export default function GameScreenWeb() {
           {subs.map((sub) => (
             <View
               key={sub}
-              style={isDouble ? { width: "48%" } : { width: "100%" }}
+              style={isDouble ? { width: "47%" } : { width: "100%" }}
               // @ts-ignore
               onMouseEnter={() => setHoveredAction(sub)}
-              // @ts-ignore
               onMouseLeave={() => setHoveredAction(null)}
             >
               <TouchableOpacity
@@ -416,21 +491,33 @@ export default function GameScreenWeb() {
     );
   };
 
-  // ==========================================
-  // 4. RENDERIZADO VISUAL (UI)
-  // ==========================================
+  const eventTypeLabel = () => {
+    if (!eventData) return "";
+    switch (eventData.eventType) {
+      case "oficial":
+        return `🏆 ${eventData.denomination || "Competencia Oficial"}`;
+      case "interno":
+        return `🔵 Control Interno – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
+      case "externo":
+        return `🟢 Control Externo – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
+      case "entrenamiento":
+        return `⚪ Entrenamiento – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
+      default:
+        return eventData.tournament || "";
+    }
+  };
 
+  // ============ UI ============
   return (
     <View style={tw`flex-1 bg-slate-900`}>
       <HeaderMenu
         dark={true}
         title="PANEL DE JUEGO"
-        onBack={() => handleExit()}
+        onBack={handleExit}
         showQuickNav={true}
       />
 
       <View style={tw`flex-1 flex-row overflow-hidden`}>
-        {/* -- SIDEBAR MANUAL -- */}
         {isManualOpen && (
           <View style={tw`w-80 border-r border-slate-800 bg-slate-900 z-40`}>
             <ReferencePanel
@@ -444,14 +531,14 @@ export default function GameScreenWeb() {
 
         <View style={tw`flex-1 bg-slate-900 flex-col overflow-hidden relative`}>
           <View style={tw`flex-1 flex-col`}>
-            {/* --- SECCIÓN SUPERIOR: HEADER / MARCADOR --- */}
+            {/* Marcador superior */}
             <View
               style={[
                 tw`h-44 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300`,
                 blink ? tw`bg-red-900` : tw`bg-slate-950`,
               ]}
             >
-              {/* EQUIPO A */}
+              {/* Equipo A */}
               <View
                 style={tw`flex-1 flex-row items-center justify-start gap-8`}
               >
@@ -484,7 +571,6 @@ export default function GameScreenWeb() {
                     </Text>
                   </View>
                 </View>
-                {/* LISTA VERTICAL EQUIPO A - AZUL */}
                 <View style={tw`flex-col gap-5`}>
                   {eventData?.teamA?.players?.map(
                     (player: any, index: number) => {
@@ -510,7 +596,7 @@ export default function GameScreenWeb() {
                 </View>
               </View>
 
-              {/* PUNTUACIÓN CENTRAL */}
+              {/* Puntuación central */}
               <View
                 style={tw`items-center bg-slate-950 px-10 py-2 border-x border-slate-900/50 shadow-2xl`}
               >
@@ -534,12 +620,14 @@ export default function GameScreenWeb() {
                   >
                     SET {currentSet}
                   </Text>
+                  <Text style={tw`text-slate-400 text-[11px] mt-0.5`}>
+                    {eventTypeLabel()}
+                  </Text>
                 </View>
               </View>
 
-              {/* EQUIPO B */}
+              {/* Equipo B */}
               <View style={tw`flex-1 flex-row items-center justify-end gap-8`}>
-                {/* LISTA VERTICAL EQUIPO B - ROJO */}
                 <View style={tw`flex-col gap-5`}>
                   {eventData?.teamB?.players?.map(
                     (player: any, index: number) => {
@@ -595,15 +683,23 @@ export default function GameScreenWeb() {
               </View>
             </View>
 
-            {/* --- SECCIÓN CENTRAL: CANCHA, COLUMNAS Y ESTADÍSTICAS --- */}
+            {/* Sección central (cancha + columnas + estadísticas) */}
             <View
               style={tw`flex-1 flex-row items-center px-4 gap-4 overflow-hidden`}
             >
-              {/* LADO IZQUIERDO: CANCHA Y ZONAS */}
+              {/* Cancha */}
               <View
                 style={tw`w-64 h-80 bg-slate-950/50 rounded-2xl p-1 border border-slate-800 relative`}
+                // @ts-ignore
+                onPointerMove={(e: any) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setMousePos({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  });
+                }}
               >
-                {/* ZONA FUERA ARRIBA (DIVIDIDA) */}
+                {/* ZONA FUERA ARRIBA */}
                 <View style={tw`flex-row h-8 w-full`}>
                   <CourtZone
                     id="A-OUT-TOP"
@@ -703,7 +799,7 @@ export default function GameScreenWeb() {
                   />
                 </View>
 
-                {/* ZONA FUERA ABAJO (DIVIDIDA) */}
+                {/* ZONA FUERA ABAJO */}
                 <View style={tw`flex-row h-8 w-full`}>
                   <CourtZone
                     id="A-OUT-BOTTOM"
@@ -723,7 +819,7 @@ export default function GameScreenWeb() {
                   />
                 </View>
 
-                {/* CAPA SVG PARA LA FLECHA */}
+                {/* Flecha SVG */}
                 {origin && selectionStep === 1 && (
                   <svg
                     style={{
@@ -760,8 +856,6 @@ export default function GameScreenWeb() {
                     />
                   </svg>
                 )}
-
-                {/* TEXTO DE GUÍA INFERIOR */}
                 {origin ? (
                   <Text
                     style={tw`absolute -bottom-5 left-0 right-0 text-center text-[8px] text-yellow-500 font-bold uppercase`}
@@ -770,18 +864,16 @@ export default function GameScreenWeb() {
                   </Text>
                 ) : null}
               </View>
-              {/* FIN LADO IZQUIERDO: CANCHA */}
 
-              {/* MEDIO: TICKET + COLUMNAS DE ACCIÓN */}
+              {/* Columnas de acción */}
               <View style={tw`flex-1 flex-col h-full justify-center py-2`}>
-                {/* TICKET DINÁMICO */}
+                {/* Ticket del rally */}
                 <View
                   style={[
                     tw`flex-row items-center bg-slate-950/90 rounded-xl border border-cyan-900/30 px-3 py-1.5 mb-3 shadow-2xl`,
                     { alignSelf: "flex-start", minWidth: 200 },
                   ]}
                 >
-                  {/* Botón Limpiar Rally */}
                   {currentRally.length > 0 && (
                     <TouchableOpacity
                       onPress={clearRally}
@@ -794,8 +886,6 @@ export default function GameScreenWeb() {
                       />
                     </TouchableOpacity>
                   )}
-
-                  {/* Tira de acciones */}
                   <View
                     style={tw`flex-row flex-wrap gap-2 items-center flex-1`}
                   >
@@ -806,11 +896,11 @@ export default function GameScreenWeb() {
                         Esperando Rally...
                       </Text>
                     ) : (
-                      currentRally.map((accion, index) => (
+                      currentRally.map((accion, idx) => (
                         <TouchableOpacity
-                          key={index}
+                          key={idx}
                           onPress={() => {
-                            editRallyAction(index);
+                            editRallyAction(idx);
                             setIsEditingMode(true);
                           }}
                           style={tw`bg-slate-900 px-2 py-1 rounded-lg border border-slate-700 flex-row items-center gap-2 active:bg-cyan-900/50 hover:border-cyan-500 transition-colors`}
@@ -851,8 +941,6 @@ export default function GameScreenWeb() {
                       ))
                     )}
                   </View>
-
-                  {/* Botón Guardar Rally */}
                   {currentRally.length > 0 && (
                     <TouchableOpacity
                       onPress={handleAutoCommit}
@@ -865,7 +953,7 @@ export default function GameScreenWeb() {
                   )}
                 </View>
 
-                {/* COLUMNAS DE ACCIÓN */}
+                {/* Columnas de acciones */}
                 <View style={tw`flex-1 flex-row gap-1 justify-start`}>
                   {renderActionColumn("Serv.", "SERVICIO", [
                     "BAJ",
@@ -908,13 +996,12 @@ export default function GameScreenWeb() {
                   ])}
                 </View>
               </View>
-              {/* FIN MEDIO: COLUMNAS */}
 
-              {/* PANEL DE ESTADÍSTICAS */}
+              {/* Panel de estadísticas (scrollable) */}
               <View
                 style={[
                   tw`bg-slate-950 border-l border-slate-800`,
-                  { width: isStatsOpen ? 500 : 60, height: "100%" }, // altura completa forzada
+                  { width: isStatsOpen ? 500 : 60, height: "100%" },
                 ]}
               >
                 <TouchableOpacity
@@ -927,7 +1014,6 @@ export default function GameScreenWeb() {
                     color="white"
                   />
                 </TouchableOpacity>
-
                 {isStatsOpen ? (
                   <View style={tw`flex-1 p-4 pt-12`}>
                     <Text
@@ -953,16 +1039,10 @@ export default function GameScreenWeb() {
                         const stats = getPlayerStats(pId);
                         if (!stats) return null;
                         const isTeamA = player.team === "A";
-                        const borderColor = isTeamA
-                          ? "border-blue-500"
-                          : "border-red-500";
-                        const bgColor = isTeamA
-                          ? "bg-blue-900/20"
-                          : "bg-red-900/20";
                         return (
                           <View
                             key={idx}
-                            style={tw`${bgColor} p-2 rounded-xl border ${borderColor}`}
+                            style={tw`${isTeamA ? "bg-blue-900/20 border-blue-500" : "bg-red-900/20 border-red-500"} p-2 rounded-xl border`}
                           >
                             <View
                               style={tw`flex-row justify-between items-center mb-1`}
@@ -982,7 +1062,6 @@ export default function GameScreenWeb() {
                                 </Text>
                               </View>
                             </View>
-                            {/* Grid de categorías */}
                             <View style={tw`flex-row flex-wrap gap-1`}>
                               <MiniStatBox
                                 label="SRV"
@@ -1033,13 +1112,11 @@ export default function GameScreenWeb() {
                 )}
               </View>
             </View>
-            {/* FIN SECCIÓN CENTRAL */}
 
-            {/* --- FOOTER: CRONÓMETROS Y CONTROL --- */}
+            {/* Footer con cronómetros y botones */}
             <View
               style={tw`h-20 bg-slate-950 border-t border-slate-800 flex-row items-center justify-between px-10`}
             >
-              {/* CONTROLES IZQUIERDA */}
               <View style={tw`flex-1 flex-row justify-start`}>
                 <TouchableOpacity
                   onPress={() => setIsManualOpen(!isManualOpen)}
@@ -1057,8 +1134,6 @@ export default function GameScreenWeb() {
                   </Text>
                 </TouchableOpacity>
               </View>
-
-              {/* CRONÓMETROS CENTRALES */}
               <View
                 style={tw`flex-row items-center gap-8 bg-slate-900/50 px-6 py-2 rounded-3xl border border-slate-800`}
               >
@@ -1091,10 +1166,7 @@ export default function GameScreenWeb() {
                   </Text>
                 </View>
               </View>
-
-              {/* CONTROLES DERECHA */}
               <View style={tw`flex-1 flex-row justify-end gap-3`}>
-                {/* BOTÓN COMENZAR / PAUSAR */}
                 <TouchableOpacity
                   onPress={() => {
                     if (!hasStarted) {
@@ -1107,13 +1179,7 @@ export default function GameScreenWeb() {
                         : timers.startRealTime();
                     }
                   }}
-                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${
-                    !hasStarted
-                      ? "bg-green-600 border-green-800"
-                      : timers.isRealTimeActive
-                        ? "bg-orange-600 border-orange-800"
-                        : "bg-green-600 border-green-800"
-                  }`}
+                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${!hasStarted ? "bg-green-600 border-green-800" : timers.isRealTimeActive ? "bg-orange-600 border-orange-800" : "bg-green-600 border-green-800"}`}
                 >
                   <Ionicons
                     name={
@@ -1134,21 +1200,8 @@ export default function GameScreenWeb() {
                         : "Reanudar Juego"}
                   </Text>
                 </TouchableOpacity>
-
-                {/* BOTÓN FINAL PARCIAL */}
                 <TouchableOpacity
-                  onPress={() => {
-                    if (
-                      window.confirm(
-                        "¿Deseas guardar el parcial actual para continuar después?",
-                      )
-                    ) {
-                      saveCurrentMatch("partial");
-                      timers.stopRealTime();
-                      timers.stopTotalTime();
-                      router.replace("/(tabs)/menu");
-                    }
-                  }}
+                  onPress={handlePartialSave}
                   style={tw`flex-row items-center gap-2 px-5 py-2 bg-slate-800 rounded-xl border-b-4 border-slate-950`}
                 >
                   <Ionicons name="stop-circle" size={18} color="#f87171" />
@@ -1156,21 +1209,8 @@ export default function GameScreenWeb() {
                     Final Parcial
                   </Text>
                 </TouchableOpacity>
-
-                {/* NUEVO: BOTÓN FINALIZAR PARTIDO */}
                 <TouchableOpacity
-                  onPress={() => {
-                    if (
-                      window.confirm(
-                        "¿Finalizar el partido definitivamente? Esta acción no se puede deshacer.",
-                      )
-                    ) {
-                      saveCurrentMatch("finished");
-                      timers.stopRealTime();
-                      timers.stopTotalTime();
-                      router.replace("/(tabs)/menu");
-                    }
-                  }}
+                  onPress={handleFinishMatch}
                   style={tw`flex-row items-center gap-2 px-5 py-2 bg-blue-600 rounded-xl border-b-4 border-blue-800`}
                 >
                   <Ionicons name="checkmark-circle" size={18} color="white" />
@@ -1180,10 +1220,22 @@ export default function GameScreenWeb() {
                 </TouchableOpacity>
               </View>
             </View>
-            {/* FIN FOOTER */}
           </View>
         </View>
       </View>
+
+      {/* Modal global de confirmación */}
+      <CustomModal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onConfirm={modal.onConfirm}
+        onCancel={hideModal}
+        confirmText={modal.confirmText}
+        onSecondary={modal.onSecondary}
+        secondaryText={modal.secondaryText}
+      />
     </View>
   );
 }
