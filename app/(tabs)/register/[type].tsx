@@ -1,119 +1,182 @@
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Platform, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import HeaderMenu from '../../../components/HeaderMenu';
-import tw from '../../../lib/tailwind';
+import { useMatchStore } from "@/src/store/useMatchStore";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import HeaderMenu from "../../../components/HeaderMenu";
+import tw from "../../../lib/tailwind";
 
 //Traductor para el backend
 
 const MESO_MAP = {
-  'Entrante': 'ENT', 'Básico': 'BAS', 'Básico desarrollador': 'BDE',
-  'Básico estabilizador': 'BES', 'Preparatorio de control': 'PRE_CON',
-  'Precompetitivo': 'PRE_COM', 'Competitivo': 'COM',
-  'De restablecimiento mantenedor': 'RES_MAN',
-  'Preparatorio de restablecimiento': 'PRE_RES',
-  'Preparatorio de mantenimiento': 'PRE_MAN'
+  Entrante: "ENT",
+  Básico: "BAS",
+  "Básico desarrollador": "BDE",
+  "Básico estabilizador": "BES",
+  "Preparatorio de control": "PRE_CON",
+  Precompetitivo: "PRE_COM",
+  Competitivo: "COM",
+  "De restablecimiento mantenedor": "RES_MAN",
+  "Preparatorio de restablecimiento": "PRE_RES",
+  "Preparatorio de mantenimiento": "PRE_MAN",
 };
 
 const MICRO_MAP = {
-  'Ordinario': 'ORD', 'De choque intensivo': 'CHO',
-  'De aproximación': 'APR', 'Competitivo': 'COM',
-  'De recuperación o restablecimiento': 'REC'
+  Ordinario: "ORD",
+  "De choque intensivo": "CHO",
+  "De aproximación": "APR",
+  Competitivo: "COM",
+  "De recuperación o restablecimiento": "REC",
 };
 
 const WEEK_MAP = {
-  'Lunes': 'LUN', 'Martes': 'MAR', 'Miércoles': 'MIE', 
-  'Jueves': 'JUE', 'Viernes': 'VIE', 'Sábado': 'SAB', 'Domingo': 'DOM'
+  Lunes: "LUN",
+  Martes: "MAR",
+  Miércoles: "MIE",
+  Jueves: "JUE",
+  Viernes: "VIE",
+  Sábado: "SAB",
+  Domingo: "DOM",
 };
 
 const POSITION_OPTIONS = [
-  { label: 'Bloqueador', value: 'B' },
-  { label: 'Defensor', value: 'D' },
-  { label: 'Universal', value: 'U' },
-
+  { label: "Bloqueador", value: "B" },
+  { label: "Defensor", value: "D" },
+  { label: "Universal", value: "U" },
 ];
 
 const ZONE_OPTIONS = [
-  { label: 'Izquierda', value: 'IZQ' },
-  { label: 'Centro', value: 'CEN' },
-  { label: 'Derecha', value: 'DER' }
+  { label: "Izquierda", value: "IZQ" },
+  { label: "Centro", value: "CEN" },
+  { label: "Derecha", value: "DER" },
 ];
 
 // --- 1. COMPONENTE PARA FILAS ---
-const FormRow = ({ children, zIndex }: { children: React.ReactNode, zIndex?: number }) => (
-  <View style={[tw`flex-row gap-3 mb-4`, { zIndex: zIndex || 1, elevation: zIndex || 1 }]}>
+const FormRow = ({
+  children,
+  zIndex,
+}: {
+  children: React.ReactNode;
+  zIndex?: number;
+}) => (
+  <View
+    style={[
+      tw`flex-row gap-3 mb-4`,
+      { zIndex: zIndex || 1, elevation: zIndex || 1 },
+    ]}
+  >
     {children}
   </View>
 );
 
 // --- 2. COMPONENTE PARA TEXTO ---
-const SmartInput = ({ label, value, onChangeText, keyboardType = 'default' }: any) => {
+const SmartInput = ({
+  label,
+  value,
+  onChangeText,
+  keyboardType = "default",
+}: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
   return (
-    <View style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}>
-      {isPC && <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>{label}:</Text>}
-      <TextInput 
-        style={tw`flex-1 h-full text-slate-700 text-sm`} 
-        value={value} 
-        placeholder={isPC ? "" : label} 
-        placeholderTextColor="#94A3B8" 
-        onChangeText={onChangeText} 
-        keyboardType={keyboardType} 
+    <View
+      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+    >
+      {isPC && (
+        <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+          {label}:
+        </Text>
+      )}
+      <TextInput
+        style={tw`flex-1 h-full text-slate-700 text-sm`}
+        value={value}
+        placeholder={isPC ? "" : label}
+        placeholderTextColor="#94A3B8"
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
       />
     </View>
   );
 };
 
 // --- 3. SELECTOR ESTILIZADO (Sustituye al Picker feo) ---
-const SmartSelect = ({ label, options, value, onSelect, isOpen, setIsOpen, isMini }: any) => {
+const SmartSelect = ({
+  label,
+  options,
+  value,
+  onSelect,
+  isOpen,
+  setIsOpen,
+  isMini,
+}: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
 
-
-
   return (
-    <View style={{ flex: 1, zIndex: 100 }}> 
-      <TouchableOpacity 
-        onPress={() => setIsOpen(!isOpen ? (label || value) : null)} 
+    <View style={{ flex: 1, zIndex: 100 }}>
+      <TouchableOpacity
+        onPress={() => setIsOpen(!isOpen ? label || value : null)}
         activeOpacity={0.8}
-        style={tw`${isMini ? 'h-9 border-slate-200 px-1' : 'h-12 border-slate-300 px-3'} flex-row items-center border rounded-lg bg-slate-50`}
+        style={tw`${isMini ? "h-9 border-slate-200 px-1" : "h-12 border-slate-300 px-3"} flex-row items-center border rounded-lg bg-slate-50`}
       >
         {/* MODIFICACIÓN: Si es mini, NO renderizamos el label ni los puntos */}
         {isPC && !isMini && label !== "" && (
-          <Text style={tw`font-bold text-[#003366] text-xs mr-1 uppercase`}>{label}:</Text>
+          <Text style={tw`font-bold text-[#003366] text-xs mr-1 uppercase`}>
+            {label}:
+          </Text>
         )}
 
-        <Text 
-          style={tw`text-slate-700 ${isMini ? 'text-[11px]' : 'text-sm'} flex-1 font-medium text-center`} 
+        <Text
+          style={tw`text-slate-700 ${isMini ? "text-[11px]" : "text-sm"} flex-1 font-medium text-center`}
           numberOfLines={1}
         >
           {value}
         </Text>
-        
-        <Ionicons 
-          name={isOpen ? "chevron-up" : "chevron-down"} 
-          size={isMini ? 8 : 14} 
-          color="#003366" 
+
+        <Ionicons
+          name={isOpen ? "chevron-up" : "chevron-down"}
+          size={isMini ? 8 : 14}
+          color="#003366"
         />
       </TouchableOpacity>
 
       {/* Menú desplegable */}
       {isOpen && (
-        <View style={[
-          tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
-          { top: isMini ? 34 : 50, zIndex: 9999, elevation: 10, minWidth: isMini ? 100 : 'auto' }
-        ]}>
+        <View
+          style={[
+            tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
+            {
+              top: isMini ? 34 : 50,
+              zIndex: 9999,
+              elevation: 10,
+              minWidth: isMini ? 100 : "auto",
+            },
+          ]}
+        >
           {options.map((opt: string) => (
-            <TouchableOpacity 
-              key={opt} 
-              onPress={() => { onSelect(opt); setIsOpen(null); }} 
-              style={tw`${isMini ? 'p-2' : 'p-4'} border-b border-slate-100`}
+            <TouchableOpacity
+              key={opt}
+              onPress={() => {
+                onSelect(opt);
+                setIsOpen(null);
+              }}
+              style={tw`${isMini ? "p-2" : "p-4"} border-b border-slate-100`}
             >
-              <Text style={tw`text-slate-700 ${isMini ? 'text-[10px]' : 'text-sm'}`}>{opt}</Text>
+              <Text
+                style={tw`text-slate-700 ${isMini ? "text-[10px]" : "text-sm"}`}
+              >
+                {opt}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -129,31 +192,43 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   const [show, setShow] = useState(false);
 
   // Detectamos si es Web para usar el input nativo del navegador
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     return (
-      <View style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}>
-        {isPC && <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>{label}:</Text>}
+      <View
+        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+      >
+        {isPC && (
+          <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+            {label}:
+          </Text>
+        )}
         <input
-          type={mode === 'date' ? 'date' : 'time'}
+          type={mode === "date" ? "date" : "time"}
           style={{
             flex: 1,
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#334155',
-            fontSize: '14px',
-            outline: 'none',
+            border: "none",
+            backgroundColor: "transparent",
+            color: "#334155",
+            fontSize: "14px",
+            outline: "none",
           }}
           // Formateo de fecha para que el input HTML lo entienda (YYYY-MM-DD)
-          value={value instanceof Date ? (mode === 'date' ? value.toISOString().split('T')[0] : value.toTimeString().substring(0,5)) : ""}
+          value={
+            value instanceof Date
+              ? mode === "date"
+                ? value.toISOString().split("T")[0]
+                : value.toTimeString().substring(0, 5)
+              : ""
+          }
           onChange={(e) => {
             const val = e.target.value;
             if (!val) return;
             const newDate = new Date(value);
-            if (mode === 'date') {
-              const [y, m, d] = val.split('-').map(Number);
+            if (mode === "date") {
+              const [y, m, d] = val.split("-").map(Number);
               newDate.setFullYear(y, m - 1, d);
             } else {
-              const [h, min] = val.split(':').map(Number);
+              const [h, min] = val.split(":").map(Number);
               newDate.setHours(h, min);
             }
             onChange(newDate);
@@ -166,28 +241,43 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   // --- CÓDIGO PARA MÓVIL (Android/iOS) ---
   return (
     <View style={tw`flex-1`}>
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={() => setShow(true)}
         activeOpacity={0.7}
         style={tw`flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
       >
-        {isPC && <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>{label}:</Text>}
+        {isPC && (
+          <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+            {label}:
+          </Text>
+        )}
         <Text style={tw`text-slate-700 text-sm`}>
-          {value instanceof Date 
-            ? (mode === 'date' ? value.toLocaleDateString() : value.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})) 
+          {value instanceof Date
+            ? mode === "date"
+              ? value.toLocaleDateString()
+              : value.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
             : label}
         </Text>
       </TouchableOpacity>
 
       {show && (
-        <DateTimePicker 
-          value={value instanceof Date ? value : new Date()} 
-          mode={mode} 
-          display={Platform.OS === 'ios' ? 'spinner' : (mode === 'date' ? 'calendar' : 'clock')} 
+        <DateTimePicker
+          value={value instanceof Date ? value : new Date()}
+          mode={mode}
+          display={
+            Platform.OS === "ios"
+              ? "spinner"
+              : mode === "date"
+                ? "calendar"
+                : "clock"
+          }
           onChange={(event, selectedDate) => {
-            setShow(false); 
+            setShow(false);
             if (selectedDate) onChange(selectedDate);
-          }} 
+          }}
         />
       )}
     </View>
@@ -197,76 +287,107 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
 export default function RegisterDataScreen() {
   const { type } = useLocalSearchParams();
   const router = useRouter();
+  const setInitialMatchData = useMatchStore(
+    (state) => state.setInitialMatchData,
+  );
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    denomination: '', place: '', category: 'Juvenil', sex: 'Masculino',
-    date: new Date(), start_time: new Date(), objective: '', 
-    meso: 'Entrante', micro: 'Ordinario', micro_num: '1', 
-    week_day: 'Lunes'
+    denomination: "",
+    place: "",
+    category: "Juvenil",
+    sex: "Masculino",
+    date: new Date(),
+    start_time: new Date(),
+    objective: "",
+    meso: "Entrante",
+    micro: "Ordinario",
+    micro_num: "1",
+    week_day: "Lunes",
   });
 
-  const updateForm = (key: string, value: any) => setFormData(prev => ({ ...prev, [key]: value }));
+  const updateForm = (key: string, value: any) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
 
-  const [teamA, setTeamA] = useState('Equipo A');
-  const [teamB, setTeamB] = useState('Equipo B');
-  
+  const [teamA, setTeamA] = useState("Equipo A");
+  const [teamB, setTeamB] = useState("Equipo B");
+
   const initialPlayers = [
-    { number: '1', fullName: '', position: 'B', zone: 'CEN' }, 
-    { number: '2', fullName: '', position: 'D', zone: 'CEN' }
+    { number: "1", fullName: "", position: "B", zone: "CEN" },
+    { number: "2", fullName: "", position: "D", zone: "CEN" },
   ];
-  
-  const [playersA, setPlayersA] = useState(initialPlayers.map(p => ({ ...p })));
-  const [playersB, setPlayersB] = useState(initialPlayers.map(p => ({ ...p })));
+
+  const [playersA, setPlayersA] = useState(
+    initialPlayers.map((p) => ({ ...p })),
+  );
+  const [playersB, setPlayersB] = useState(
+    initialPlayers.map((p) => ({ ...p })),
+  );
 
   const handleStartEvent = () => {
-    // 1. Preparamos el objeto maestro
-    const eventPayload = {
-      type, // 'oficial', 'entrenamiento', etc.
-      ...formData,
-      teamA: { name: teamA, players: playersA },
-      teamB: { name: teamB, players: playersB },
-      timestamp: new Date().toISOString()
+    const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
+    const matchConfig = {
+      tournament: formData.denomination || `${formData.meso} ${formData.micro}`,
+      category: formData.category,
+      date: formData.date.toISOString(),
+      matchNumber: parseInt(formData.micro_num) || 1,
+      branch,
+      eventType: type as string,
+      teamA: {
+        name: teamA,
+        players: playersA
+          .map((p) => ({ number: p.number, fullName: p.fullName }))
+          .filter((p) => p.number !== ""),
+      },
+      teamB: {
+        name: teamB,
+        players: playersB
+          .map((p) => ({ number: p.number, fullName: p.fullName }))
+          .filter((p) => p.number !== ""),
+      },
     };
 
-    // 2. Por ahora, lo vemos en consola para estar seguros de que todo viaja bien
-    console.log("--- DATOS DEL EVENTO LISTOS ---");
-    console.log(JSON.stringify(eventPayload, null, 2));
+    // 2. Guardar en el Store y obtener el matchId generado
+    const matchId = setInitialMatchData(matchConfig);
+    console.log(`Partido creado: ${matchId}`);
 
-    // 3. Navegamos a la pantalla de Juego (GameScreen) 
-    // Pasamos los datos. Nota: En Expo Router, para objetos grandes, 
-    // a veces es mejor usar un estado global o params serializados.
-    router.push({
-      pathname: "/game", // Crearemos esta ruta a continuación
-      params: { data: JSON.stringify(eventPayload) }
-    });
+    // 3. Navegar a la pantalla de juego (sin parámetros)
+    router.push("/game"); // Ajusta la ruta a tu pantalla de marcador
   };
 
-  const updatePlayer = (team: 'A' | 'B', index: number, field: string, value: string) => {
-    const setter = team === 'A' ? setPlayersA : setPlayersB;
+  const updatePlayer = (
+    team: "A" | "B",
+    index: number,
+    field: string,
+    value: string,
+  ) => {
+    const setter = team === "A" ? setPlayersA : setPlayersB;
 
-    setter(prevPlayers => 
-    prevPlayers.map((player, i) => {
-      if (i === index) {
-        // Retornamos un nuevo objeto con el campo actualizado
-        return { ...player, [field]: value };
-      }
-      return player;
-    })
-  );
-};
-
-  const addPlayer = (team: 'A' | 'B') => {
-    if (type !== 'entrenamiento') return; 
-    const setter = team === 'A' ? setPlayersA : setPlayersB;
-    const players = team === 'A' ? playersA : playersB;
-    setter([...players, { number: '', fullName: '', position: 'B', zone: 'CEN' }]);
+    setter((prevPlayers) =>
+      prevPlayers.map((player, i) => {
+        if (i === index) {
+          // Retornamos un nuevo objeto con el campo actualizado
+          return { ...player, [field]: value };
+        }
+        return player;
+      }),
+    );
   };
 
-  const removePlayer = (team: 'A' | 'B', index: number) => {
-    if (type !== 'entrenamiento') return; 
-    const setter = team === 'A' ? setPlayersA : setPlayersB;
-    const players = team === 'A' ? [...playersA] : [...playersB];
+  const addPlayer = (team: "A" | "B") => {
+    if (type !== "entrenamiento") return;
+    const setter = team === "A" ? setPlayersA : setPlayersB;
+    const players = team === "A" ? playersA : playersB;
+    setter([
+      ...players,
+      { number: "", fullName: "", position: "B", zone: "CEN" },
+    ]);
+  };
+
+  const removePlayer = (team: "A" | "B", index: number) => {
+    if (type !== "entrenamiento") return;
+    const setter = team === "A" ? setPlayersA : setPlayersB;
+    const players = team === "A" ? [...playersA] : [...playersB];
     if (players.length > 1) {
       players.splice(index, 1);
       setter(players);
@@ -275,77 +396,174 @@ export default function RegisterDataScreen() {
 
   const renderSpecificFields = () => {
     switch (type) {
-      case 'oficial':
+      case "oficial":
         return (
           <>
             <FormRow zIndex={50}>
-              <SmartInput label="Denominación" value={formData.denomination} onChangeText={(v:any) => updateForm('denomination', v)} />
-              <SmartDateTime label="Fecha" mode="date" value={formData.date} onChange={(v:any) => updateForm('date', v)} />
+              <SmartInput
+                label="Denominación"
+                value={formData.denomination}
+                onChangeText={(v: any) => updateForm("denomination", v)}
+              />
+              <SmartDateTime
+                label="Fecha"
+                mode="date"
+                value={formData.date}
+                onChange={(v: any) => updateForm("date", v)}
+              />
             </FormRow>
             <FormRow zIndex={40}>
-              <SmartDateTime label="Hora Inicio" mode="time" value={formData.start_time} onChange={(v:any) => updateForm('start_time', v)} />
-              <SmartInput label="Lugar" value={formData.place} onChangeText={(v:any) => updateForm('place', v)} />
+              <SmartDateTime
+                label="Hora Inicio"
+                mode="time"
+                value={formData.start_time}
+                onChange={(v: any) => updateForm("start_time", v)}
+              />
+              <SmartInput
+                label="Lugar"
+                value={formData.place}
+                onChangeText={(v: any) => updateForm("place", v)}
+              />
             </FormRow>
           </>
         );
-      case 'interno':
-      case 'externo':
+      case "interno":
+      case "externo":
         return (
           <>
             <FormRow zIndex={70}>
-              <SmartSelect label="Mesociclo" options={Object.keys(MESO_MAP)} value={formData.meso} onSelect={(v:any) => updateForm('meso', v)} isOpen={openMenu === 'Mesociclo'} setIsOpen={setOpenMenu} />
-              <SmartDateTime label="Fecha" mode="date" value={formData.date} onChange={(v:any) => updateForm('date', v)} />
+              <SmartSelect
+                label="Mesociclo"
+                options={Object.keys(MESO_MAP)}
+                value={formData.meso}
+                onSelect={(v: any) => updateForm("meso", v)}
+                isOpen={openMenu === "Mesociclo"}
+                setIsOpen={setOpenMenu}
+              />
+              <SmartDateTime
+                label="Fecha"
+                mode="date"
+                value={formData.date}
+                onChange={(v: any) => updateForm("date", v)}
+              />
             </FormRow>
             <FormRow zIndex={60}>
-              <SmartSelect label="Microciclo" options={Object.keys(MICRO_MAP)} value={formData.micro} onSelect={(v:any) => updateForm('micro', v)} isOpen={openMenu === 'Microciclo'} setIsOpen={setOpenMenu} />
-              <SmartSelect label="Día" options={Object.keys(WEEK_MAP)} value={formData.week_day} onSelect={(v:any) => updateForm('week_day', v)} isOpen={openMenu === 'Día'} setIsOpen={setOpenMenu} />
+              <SmartSelect
+                label="Microciclo"
+                options={Object.keys(MICRO_MAP)}
+                value={formData.micro}
+                onSelect={(v: any) => updateForm("micro", v)}
+                isOpen={openMenu === "Microciclo"}
+                setIsOpen={setOpenMenu}
+              />
+              <SmartSelect
+                label="Día"
+                options={Object.keys(WEEK_MAP)}
+                value={formData.week_day}
+                onSelect={(v: any) => updateForm("week_day", v)}
+                isOpen={openMenu === "Día"}
+                setIsOpen={setOpenMenu}
+              />
             </FormRow>
             <FormRow zIndex={50}>
-              <SmartInput label="No. Micro" value={formData.micro_num} keyboardType="numeric" onChangeText={(v:any) => updateForm('micro_num', v)} />
-              <SmartInput label="Lugar" value={formData.place} onChangeText={(v:any) => updateForm('place', v)} />
+              <SmartInput
+                label="No. Micro"
+                value={formData.micro_num}
+                keyboardType="numeric"
+                onChangeText={(v: any) => updateForm("micro_num", v)}
+              />
+              <SmartInput
+                label="Lugar"
+                value={formData.place}
+                onChangeText={(v: any) => updateForm("place", v)}
+              />
             </FormRow>
           </>
         );
-      case 'entrenamiento':
+      case "entrenamiento":
         return (
           <>
             <FormRow zIndex={70}>
-              <SmartSelect label="Mesociclo" options={Object.keys(MESO_MAP)} value={formData.meso} onSelect={(v:any) => updateForm('meso', v)} isOpen={openMenu === 'Mesociclo'} setIsOpen={setOpenMenu} />
-              <SmartDateTime label="Fecha" mode="date" value={formData.date} onChange={(v:any) => updateForm('date', v)} />
+              <SmartSelect
+                label="Mesociclo"
+                options={Object.keys(MESO_MAP)}
+                value={formData.meso}
+                onSelect={(v: any) => updateForm("meso", v)}
+                isOpen={openMenu === "Mesociclo"}
+                setIsOpen={setOpenMenu}
+              />
+              <SmartDateTime
+                label="Fecha"
+                mode="date"
+                value={formData.date}
+                onChange={(v: any) => updateForm("date", v)}
+              />
             </FormRow>
             <FormRow zIndex={60}>
-              <SmartSelect label="Microciclo" options={Object.keys(MICRO_MAP)} value={formData.micro} onSelect={(v:any) => updateForm('micro', v)} isOpen={openMenu === 'Microciclo'} setIsOpen={setOpenMenu} />
-              <SmartSelect label="Día" options={Object.keys(WEEK_MAP)} value={formData.week_day} onSelect={(v:any) => updateForm('week_day', v)} isOpen={openMenu === 'Día'} setIsOpen={setOpenMenu} />
+              <SmartSelect
+                label="Microciclo"
+                options={Object.keys(MICRO_MAP)}
+                value={formData.micro}
+                onSelect={(v: any) => updateForm("micro", v)}
+                isOpen={openMenu === "Microciclo"}
+                setIsOpen={setOpenMenu}
+              />
+              <SmartSelect
+                label="Día"
+                options={Object.keys(WEEK_MAP)}
+                value={formData.week_day}
+                onSelect={(v: any) => updateForm("week_day", v)}
+                isOpen={openMenu === "Día"}
+                setIsOpen={setOpenMenu}
+              />
             </FormRow>
             <FormRow zIndex={50}>
-              <SmartInput label="No. Micro" value={formData.micro_num} keyboardType="numeric" onChangeText={(v:any) => updateForm('micro_num', v)} />
-              <SmartInput label="Objetivo" value={formData.objective} onChangeText={(v:any) => updateForm('objective', v)} />
+              <SmartInput
+                label="No. Micro"
+                value={formData.micro_num}
+                keyboardType="numeric"
+                onChangeText={(v: any) => updateForm("micro_num", v)}
+              />
+              <SmartInput
+                label="Objetivo"
+                value={formData.objective}
+                onChangeText={(v: any) => updateForm("objective", v)}
+              />
             </FormRow>
           </>
         );
-      default: return null;
+      default:
+        return null;
     }
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-white`} edges={['top']}>
+    <SafeAreaView style={tw`flex-1 bg-white`} edges={["top"]}>
       {/* REEMPLAZO DEL HEADER MANUAL:
           - dark={false} para que los iconos sean azules/oscuros sobre fondo blanco.
           - showQuickNav={true} para tener el menú de hamburguesa a la derecha.
       */}
-      <HeaderMenu 
+      <HeaderMenu
         title="REGISTRO"
         dark={false}
         showQuickNav={true}
-        onBack={() => router.replace('/(tabs)/menu')}
+        onBack={() => router.replace("/(tabs)/menu")}
       />
 
-      <ScrollView contentContainerStyle={tw`p-5 pt-16 pb-20`} style={{ flex: 1 }}>
-        <Text style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}>
-          {type === 'oficial' ? 'Competencia Oficial' : 
-           type === 'interno' ? 'Juego de Control Interno' :
-           type === 'externo' ? 'Juego de Control Externo' : 
-           'Sesión de Entrenamiento'}
+      <ScrollView
+        contentContainerStyle={tw`p-5 pt-16 pb-20`}
+        style={{ flex: 1 }}
+      >
+        <Text
+          style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}
+        >
+          {type === "oficial"
+            ? "Competencia Oficial"
+            : type === "interno"
+              ? "Juego de Control Interno"
+              : type === "externo"
+                ? "Juego de Control Externo"
+                : "Sesión de Entrenamiento"}
         </Text>
 
         {/* 1. Campos dinámicos según tipo */}
@@ -353,34 +571,53 @@ export default function RegisterDataScreen() {
 
         {/* 2. Categoría y Sexo (Comunes) */}
         <FormRow zIndex={30}>
-          <SmartSelect label="Categoría" options={['Escolar', 'Juvenil', 'Mayores']} value={formData.category} onSelect={(v:any) => updateForm('category', v)} isOpen={openMenu === 'Categoría'} setIsOpen={setOpenMenu} />
-          <SmartSelect label="Sexo" options={['Masculino', 'Femenino']} value={formData.sex} onSelect={(v:any) => updateForm('sex', v)} isOpen={openMenu === 'Sexo'} setIsOpen={setOpenMenu} />
+          <SmartSelect
+            label="Categoría"
+            options={["Escolar", "Juvenil", "Mayores"]}
+            value={formData.category}
+            onSelect={(v: any) => updateForm("category", v)}
+            isOpen={openMenu === "Categoría"}
+            setIsOpen={setOpenMenu}
+          />
+          <SmartSelect
+            label="Sexo"
+            options={["Masculino", "Femenino"]}
+            value={formData.sex}
+            onSelect={(v: any) => updateForm("sex", v)}
+            isOpen={openMenu === "Sexo"}
+            setIsOpen={setOpenMenu}
+          />
         </FormRow>
 
         {/* --- SECCIÓN DE PARTICIPANTES (EQUIPO A VS EQUIPO B) --- */}
         <View style={tw`flex-row items-center gap-3 my-4`}>
-          <TextInput 
-            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold`} 
-            placeholder="Equipo A" 
-            value={teamA} 
-            onChangeText={setTeamA} 
+          <TextInput
+            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold`}
+            placeholder="Equipo A"
+            value={teamA}
+            onChangeText={setTeamA}
           />
           <Text style={tw`font-black text-lg`}>VS</Text>
-          <TextInput 
-            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold text-right`} 
-            placeholder="Equipo B" 
-            value={teamB} 
-            onChangeText={setTeamB} 
+          <TextInput
+            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold text-right`}
+            placeholder="Equipo B"
+            value={teamB}
+            onChangeText={setTeamB}
           />
         </View>
 
         {/* --- TABLA EQUIPO A --- */}
         <View style={tw`flex-row justify-between items-center mb-2`}>
           <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamA}</Text>
-          {type === 'entrenamiento' && (
-            <TouchableOpacity onPress={() => addPlayer('A')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
+          {type === "entrenamiento" && (
+            <TouchableOpacity
+              onPress={() => addPlayer("A")}
+              style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}
+            >
               <Ionicons name="add-circle" size={16} color="#003366" />
-              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>Añadir</Text>
+              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>
+                Añadir
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -388,55 +625,92 @@ export default function RegisterDataScreen() {
         {/* Header Tabla Equipo A */}
         <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
           <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>Nombre y Apellidos</Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Posición</Text>
+          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>
+            Nombre y Apellidos
+          </Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>
+            Posición
+          </Text>
           <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
-          {type === 'entrenamiento' && <Text style={tw`w-8`}></Text>}
+          {type === "entrenamiento" && <Text style={tw`w-8`}></Text>}
         </View>
 
         {playersA.map((p, i) => (
-          <View key={`A-${i}`} style={[tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`, { zIndex: 100 - i }]}>
-            <TextInput 
-              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`} 
-              value={p.number} 
+          <View
+            key={`A-${i}`}
+            style={[
+              tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`,
+              { zIndex: 100 - i },
+            ]}
+          >
+            <TextInput
+              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`}
+              value={p.number}
               keyboardType="numeric"
-              onChangeText={(v) => updatePlayer('A', i, 'number', v)} 
+              onChangeText={(v) => updatePlayer("A", i, "number", v)}
             />
-            <TextInput 
-              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`} 
-              placeholder="Nombre..." 
-              value={p.fullName} 
-              onChangeText={(v) => updatePlayer('A', i, 'fullName', v)} 
+            <TextInput
+              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`}
+              placeholder="Nombre..."
+              value={p.fullName}
+              onChangeText={(v) => updatePlayer("A", i, "fullName", v)}
             />
-            
+
             {/* Selector de Posición Equipo A */}
             <View style={tw`w-24 px-1`}>
-              <SmartSelect 
-                label="" 
-                options={POSITION_OPTIONS.map(o => o.label)} 
-                value={POSITION_OPTIONS.find(o => o.value === p.position)?.label || 'Pos.'}
-                onSelect={(label: string) => updatePlayer('A', i, 'position', POSITION_OPTIONS.find(o => o.label === label)?.value || 'B')}
+              <SmartSelect
+                label=""
+                options={POSITION_OPTIONS.map((o) => o.label)}
+                value={
+                  POSITION_OPTIONS.find((o) => o.value === p.position)?.label ||
+                  "Pos."
+                }
+                onSelect={(label: string) =>
+                  updatePlayer(
+                    "A",
+                    i,
+                    "position",
+                    POSITION_OPTIONS.find((o) => o.label === label)?.value ||
+                      "B",
+                  )
+                }
                 isOpen={openMenu === `A-pos-${i}`}
-                setIsOpen={() => setOpenMenu(openMenu === `A-pos-${i}` ? null : `A-pos-${i}`)}
-                isMini 
+                setIsOpen={() =>
+                  setOpenMenu(openMenu === `A-pos-${i}` ? null : `A-pos-${i}`)
+                }
+                isMini
               />
             </View>
 
             {/* Selector de Zona Equipo A */}
             <View style={tw`w-24 px-1`}>
-              <SmartSelect 
-                label="" 
-                options={ZONE_OPTIONS.map(o => o.label)} 
-                value={ZONE_OPTIONS.find(o => o.value === p.zone)?.label || 'Zona'}
-                onSelect={(label: string) => updatePlayer('A', i, 'zone', ZONE_OPTIONS.find(o => o.label === label)?.value || 'CEN')}
+              <SmartSelect
+                label=""
+                options={ZONE_OPTIONS.map((o) => o.label)}
+                value={
+                  ZONE_OPTIONS.find((o) => o.value === p.zone)?.label || "Zona"
+                }
+                onSelect={(label: string) =>
+                  updatePlayer(
+                    "A",
+                    i,
+                    "zone",
+                    ZONE_OPTIONS.find((o) => o.label === label)?.value || "CEN",
+                  )
+                }
                 isOpen={openMenu === `A-zone-${i}`}
-                setIsOpen={() => setOpenMenu(openMenu === `A-zone-${i}` ? null : `A-zone-${i}`)}
+                setIsOpen={() =>
+                  setOpenMenu(openMenu === `A-zone-${i}` ? null : `A-zone-${i}`)
+                }
                 isMini
               />
             </View>
 
-            {type === 'entrenamiento' && (
-              <TouchableOpacity onPress={() => removePlayer('A', i)} style={tw`w-8 items-center`}>
+            {type === "entrenamiento" && (
+              <TouchableOpacity
+                onPress={() => removePlayer("A", i)}
+                style={tw`w-8 items-center`}
+              >
                 <Ionicons name="trash-outline" size={14} color="#EF4444" />
               </TouchableOpacity>
             )}
@@ -446,10 +720,15 @@ export default function RegisterDataScreen() {
         {/* --- TABLA EQUIPO B --- */}
         <View style={tw`flex-row justify-between items-center mt-8 mb-2`}>
           <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamB}</Text>
-          {type === 'entrenamiento' && (
-            <TouchableOpacity onPress={() => addPlayer('B')} style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}>
+          {type === "entrenamiento" && (
+            <TouchableOpacity
+              onPress={() => addPlayer("B")}
+              style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}
+            >
               <Ionicons name="add-circle" size={16} color="#003366" />
-              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>Añadir</Text>
+              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>
+                Añadir
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -457,79 +736,117 @@ export default function RegisterDataScreen() {
         {/* Header Tabla Equipo B */}
         <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
           <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>Nombre y Apellidos</Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Posición</Text>
+          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>
+            Nombre y Apellidos
+          </Text>
+          <Text style={tw`w-24 font-bold text-[18px] text-center`}>
+            Posición
+          </Text>
           <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
-          {type === 'entrenamiento' && <Text style={tw`w-8`}></Text>}
+          {type === "entrenamiento" && <Text style={tw`w-8`}></Text>}
         </View>
 
         {playersB.map((p, i) => (
-          <View key={`B-${i}`} style={[tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`, { zIndex: 50 - i }]}>
-            <TextInput 
-              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`} 
-              value={p.number} 
+          <View
+            key={`B-${i}`}
+            style={[
+              tw`flex-row border-x border-b border-slate-200 p-1 bg-white items-center`,
+              { zIndex: 50 - i },
+            ]}
+          >
+            <TextInput
+              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`}
+              value={p.number}
               keyboardType="numeric"
-              onChangeText={(v) => updatePlayer('B', i, 'number', v)} 
+              onChangeText={(v) => updatePlayer("B", i, "number", v)}
             />
-            <TextInput 
-              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`} 
-              placeholder="Nombre..." 
-              value={p.fullName} 
-              onChangeText={(v) => updatePlayer('B', i, 'fullName', v)} 
+            <TextInput
+              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`}
+              placeholder="Nombre..."
+              value={p.fullName}
+              onChangeText={(v) => updatePlayer("B", i, "fullName", v)}
             />
-            
+
             {/* Selector de Posición Equipo B */}
             <View style={tw`w-24 px-1`}>
-              <SmartSelect 
-                label="" 
-                options={POSITION_OPTIONS.map(o => o.label)} 
-                value={POSITION_OPTIONS.find(o => o.value === p.position)?.label || 'Pos.'}
-                onSelect={(label: string) => updatePlayer('B', i, 'position', POSITION_OPTIONS.find(o => o.label === label)?.value || 'B')}
+              <SmartSelect
+                label=""
+                options={POSITION_OPTIONS.map((o) => o.label)}
+                value={
+                  POSITION_OPTIONS.find((o) => o.value === p.position)?.label ||
+                  "Pos."
+                }
+                onSelect={(label: string) =>
+                  updatePlayer(
+                    "B",
+                    i,
+                    "position",
+                    POSITION_OPTIONS.find((o) => o.label === label)?.value ||
+                      "B",
+                  )
+                }
                 isOpen={openMenu === `B-pos-${i}`}
-                setIsOpen={() => setOpenMenu(openMenu === `B-pos-${i}` ? null : `B-pos-${i}`)}
+                setIsOpen={() =>
+                  setOpenMenu(openMenu === `B-pos-${i}` ? null : `B-pos-${i}`)
+                }
                 isMini
               />
             </View>
 
             {/* Selector de Zona Equipo B */}
             <View style={tw`w-24 px-1`}>
-              <SmartSelect 
-                label="" 
-                options={ZONE_OPTIONS.map(o => o.label)} 
-                value={ZONE_OPTIONS.find(o => o.value === p.zone)?.label || 'Zona'}
-                onSelect={(label: string) => updatePlayer('B', i, 'zone', ZONE_OPTIONS.find(o => o.label === label)?.value || 'CEN')}
+              <SmartSelect
+                label=""
+                options={ZONE_OPTIONS.map((o) => o.label)}
+                value={
+                  ZONE_OPTIONS.find((o) => o.value === p.zone)?.label || "Zona"
+                }
+                onSelect={(label: string) =>
+                  updatePlayer(
+                    "B",
+                    i,
+                    "zone",
+                    ZONE_OPTIONS.find((o) => o.label === label)?.value || "CEN",
+                  )
+                }
                 isOpen={openMenu === `B-zone-${i}`}
-                setIsOpen={() => setOpenMenu(openMenu === `B-zone-${i}` ? null : `B-zone-${i}`)}
+                setIsOpen={() =>
+                  setOpenMenu(openMenu === `B-zone-${i}` ? null : `B-zone-${i}`)
+                }
                 isMini
               />
             </View>
 
-            {type === 'entrenamiento' && (
-              <TouchableOpacity onPress={() => removePlayer('B', i)} style={tw`w-8 items-center`}>
+            {type === "entrenamiento" && (
+              <TouchableOpacity
+                onPress={() => removePlayer("B", i)}
+                style={tw`w-8 items-center`}
+              >
                 <Ionicons name="trash-outline" size={14} color="#EF4444" />
               </TouchableOpacity>
             )}
           </View>
         ))}
 
-      {/* --- BOTÓN DE ACCIÓN FINAL --- */}
-      <View style={tw`mt-10 mb-10`}>
-          <TouchableOpacity 
+        {/* --- BOTÓN DE ACCIÓN FINAL --- */}
+        <View style={tw`mt-10 mb-10`}>
+          <TouchableOpacity
             onPress={handleStartEvent}
             activeOpacity={0.8}
             style={tw`bg-[#003366] py-4 rounded-2xl shadow-lg flex-row justify-center items-center`}
           >
             <Ionicons name="play-circle" size={24} color="white" />
-            <Text style={tw`text-white font-black text-lg ml-2 uppercase tracking-tighter`}>
+            <Text style={tw`text-white font-black text-lg ml-2 uppercase`}>
               Comenzar Registro de Evento
             </Text>
           </TouchableOpacity>
-          
-          <Text style={tw`text-slate-400 text-[10px] text-center mt-2 uppercase`}>
+
+          <Text
+            style={tw`text-slate-400 text-[10px] text-center mt-2 uppercase`}
+          >
             Al continuar, se confirmarán las nóminas de ambos equipos.
           </Text>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

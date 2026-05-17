@@ -1,25 +1,84 @@
-import { useEffect, useState } from 'react';
+// hooks/useScoutingLogic.ts
+import { useEffect, useState } from "react";
+import { useMatchStore, type RallyAction } from "../src/store/useMatchStore";
 
-// Flujo lógico de acciones para habilitar/deshabilitar botones en la UI
+// El flujo lógico de acciones sigue igual
 const ACTION_FLOW: Record<string, string[]> = {
-  START: ['SERVICIO', 'ERRORES_SERV', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  SERVICIO: ['RECEPCION', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  RECEPCION: ['ACOMODADA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  DEFENSA: ['ACOMODADA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  ACOMODADA: ['ATAQUE', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  ATAQUE: ['BLOQUEO', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
-  BLOQUEO: ['ACOMODADA', 'DEFENSA', 'ERRORES_COM', 'ERRORES_POS', 'ERRORES_TEC'],
+  START: [
+    "SERVICIO",
+    "ERRORES_SERV",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
+  SERVICIO: [
+    "RECEPCION",
+    "DEFENSA",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
+  RECEPCION: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  DEFENSA: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  ACOMODADA: ["ATAQUE", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  ATAQUE: ["BLOQUEO", "DEFENSA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  BLOQUEO: [
+    "ACOMODADA",
+    "DEFENSA",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
 };
 
 export const useScoutingLogic = () => {
-  // --- ESTADOS DE PUNTUACIÓN ---
-  const [scoreA, setScoreA] = useState(0);
-  const [scoreB, setScoreB] = useState(0);
-  const [setsA, setSetsA] = useState(0);
-  const [setsB, setSetsB] = useState(0);
-  const [currentSet, setCurrentSet] = useState(1);
-  
-  // --- ESTADOS DE FLUJO ---
+  // ----- Acciones del store -----
+  const addRallyAction = useMatchStore((s) => s.addRallyAction);
+  const finishRally = useMatchStore((s) => s.finishRally);
+  const clearCurrentRally = useMatchStore((s) => s.clearCurrentRally);
+  const incrementSetsA = useMatchStore((s) => s.incrementSetsA);
+  const incrementSetsB = useMatchStore((s) => s.incrementSetsB);
+  const setCurrentSet = useMatchStore((s) => s.setCurrentSet);
+  const setPointsA = useMatchStore((s) => s.setPointsA);
+  const setPointsB = useMatchStore((s) => s.setPointsB);
+
+  // ----- Estado derivado del partido en curso -----
+  const currentMatch = useMatchStore((s) => s.currentMatch);
+  const score = currentMatch?.score ?? {
+    pointsA: 0,
+    pointsB: 0,
+    setsA: 0,
+    setsB: 0,
+    currentSet: 1,
+  };
+  const pointsA = score.pointsA;
+  const pointsB = score.pointsB;
+  const setsA = score.setsA;
+  const setsB = score.setsB;
+  const currentSet = score.currentSet;
+
+  // Obtener el rally en construcción (último rally sin winner)
+  const currentRallyActions: RallyAction[] = (() => {
+    if (!currentMatch) return [];
+    const setEntry = currentMatch.history.find((h) => h.set === currentSet);
+    if (!setEntry) return [];
+    const lastRally = setEntry.rallies[setEntry.rallies.length - 1];
+    if (lastRally && !lastRally.winner) return lastRally.actions;
+    return [];
+  })();
+
+  // Historial completo de rallies (para mostrar en la UI)
+  const rallyHistory =
+    currentMatch?.history.flatMap((set) =>
+      set.rallies.map((rally) => ({
+        set: set.set,
+        winner: rally.winner,
+        actions: rally.actions,
+        scoreAtTheTime: rally.scoreAtTheTime,
+      })),
+    ) ?? [];
+
+  // ----- Estados locales de flujo -----
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{
     category: string;
@@ -30,196 +89,155 @@ export const useScoutingLogic = () => {
     destination?: string;
   } | null>(null);
 
-  const [currentRally, setCurrentRally] = useState<any[]>([]);
-
   const [mustSwitchSide, setMustSwitchSide] = useState(false);
-  const [windA, setWindA] = useState('VIENTO A FAVOR');
+  const [windA, setWindA] = useState("VIENTO A FAVOR");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  
+  // Cambio de lado automático
+  const swapWindDirection = (current: string) =>
+    current === "VIENTO A FAVOR" ? "VIENTO EN CONTRA" : "VIENTO A FAVOR";
 
-  // Añadir esta función en useScoutingLogic
-  const editRallyAction = (index: number) => {
-    const actionToEdit = currentRally[index];
-    
-    // 1. Guardamos el índice para saber dónde devolverla después
-    setEditingIndex(index);
-  
-    // 2. Quitamos la acción del array temporalmente
-    const newRally = [...currentRally];
-    newRally.splice(index, 1);
-    setCurrentRally(newRally);
-  
-    // 3. Restaurar el estado para editarla
-    setSelectedPlayerId(actionToEdit.playerId);
-    setPendingAction({
-      playerId: actionToEdit.playerId,
-      category: actionToEdit.category,
-      subAction: actionToEdit.subAction,
-      value: undefined, 
-      origin: actionToEdit.origin, // Cambiado de 'from' a 'origin' para consistencia
-      destination: actionToEdit.destination // Cambiado de 'to' a 'destination'
-    });
-  };
+  const toggleWind = () => setWindA((prev) => swapWindDirection(prev));
 
-  // --- LÓGICA DE AMBIENTE ---
-  const swapWindDirection = (currentWind: string) => {
-    return currentWind === 'VIENTO A FAVOR' ? 'VIENTO EN CONTRA' : 'VIENTO A FAVOR';
-  };
-
-  const toggleWind = () => {
-    setWindA(prev => (prev === 'VIENTO A FAVOR' ? 'VIENTO EN CONTRA' : 'VIENTO A FAVOR'));
-  };
-
-  // Cambio de lado automático cada 7 puntos (Sets 1 y 2) o 5 puntos (Set 3)
   useEffect(() => {
-    const totalPoints = scoreA + scoreB;
-    const switchInterval = currentSet <= 2 ? 7 : 5; 
+    const totalPoints = pointsA + pointsB;
+    const switchInterval = currentSet <= 2 ? 7 : 5;
     if (totalPoints > 0 && totalPoints % switchInterval === 0) {
       setMustSwitchSide(true);
-      setWindA(prev => swapWindDirection(prev));
+      setWindA((prev) => swapWindDirection(prev));
     } else {
       setMustSwitchSide(false);
     }
-  }, [scoreA, scoreB, currentSet]);
+  }, [pointsA, pointsB, currentSet]);
 
-  // --- FUNCIONES DE CONTROL ---
-  
-  const handlePlayerSelect = (id: string) => {
-    setSelectedPlayerId(id);
-  };
+  // ----- Funciones de control -----
+  const handlePlayerSelect = (id: string) => setSelectedPlayerId(id);
 
   const handleActionClick = (category: string, subAction: string) => {
     if (!selectedPlayerId) return;
-    
     setPendingAction({
       category,
       subAction,
-      playerId: selectedPlayerId
+      playerId: selectedPlayerId,
     });
   };
 
   const confirmActionValue = (value: number) => {
     if (!pendingAction) return;
-
-    setPendingAction(prev => (prev ? { ...prev, value } : null));
-    // No guardamos en el rally todavía, esperamos por las zonas en la UI
+    setPendingAction((prev) => (prev ? { ...prev, value } : null));
   };
 
-  // PASO FINAL: Se llama desde la cancha cuando se marca el destino
   const updatePendingZones = (origin: string, destination: string) => {
     if (!pendingAction || pendingAction.value === undefined) return;
-  
-      // Detectamos el viento del equipo que está actuando
-  const teamLetter = pendingAction.playerId.split('-')[0]; // 'A' o 'B'
-  const actionWind = teamLetter === 'A' ? windA : (windA === 'VIENTO A FAVOR' ? 'VIENTO EN CONTRA' : 'VIENTO A FAVOR');
 
-    const finalAction = {
+    const teamLetter = pendingAction.playerId.split("-")[0];
+    const actionWind =
+      teamLetter === "A"
+        ? windA
+        : windA === "VIENTO A FAVOR"
+          ? "VIENTO EN CONTRA"
+          : "VIENTO A FAVOR";
+
+    const finalAction: RallyAction = {
       ...pendingAction,
       origin,
       destination,
       wind: actionWind,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-  
-    setCurrentRally(prev => {
-      const newRally = [...prev];
-      
-      if (editingIndex !== null) {
-        // SI ESTÁBAMOS EDITANDO: Insertar en la posición original
-        newRally.splice(editingIndex, 0, finalAction);
-      } else {
-        // SI ES NUEVA: Al final del array
-        newRally.push(finalAction);
-      }
-      
-      return newRally;
-    });
-  
-    // IMPORTANTE: Limpiar TODO para la siguiente acción
-    setPendingAction(null);
-    setSelectedPlayerId(null);
-    setEditingIndex(null); // <--- Resetear el índice de edición
-  };
 
-  const commitPoint = (teamWhoWon: 'A' | 'B') => {
-    let newScoreA = scoreA;
-    let newScoreB = scoreB;
-  
-    // 1. Sumar el punto al estado local para calcular el fin de set
-    if (teamWhoWon === 'A') {
-      newScoreA = scoreA + 1;
-      setScoreA(newScoreA);
-    } else {
-      newScoreB = scoreB + 1;
-      setScoreB(newScoreB);
-    }
-  
-    // 2. Lógica de cierre de SET (Reglas: 21 puntos sets 1-2, 15 puntos set 3)
-    const pointsToWin = currentSet <= 2 ? 21 : 15;
-    const leadingScore = teamWhoWon === 'A' ? newScoreA : newScoreB;
-    const trailingScore = teamWhoWon === 'A' ? newScoreB : newScoreA;
-  
-    // Se gana si llegas al puntaje Y hay diferencia de 2
-    if (leadingScore >= pointsToWin && (leadingScore - trailingScore) >= 2) {
-      if (teamWhoWon === 'A') setSetsA(prev => prev + 1);
-      else setSetsB(prev => prev + 1);
-  
-      // Resetear puntos y pasar al siguiente set
-      setScoreA(0);
-      setScoreB(0);
-      setCurrentSet(prev => prev + 1);
-    }
-  
-    clearRally();
-  };
+    addRallyAction(finalAction, editingIndex ?? undefined);
 
-  const clearRally = () => {
-    setCurrentRally([]);
     setPendingAction(null);
     setSelectedPlayerId(null);
     setEditingIndex(null);
   };
 
-  // 1. Modificamos canPerformAction para que detecte el contexto de edición
-const canPerformAction = (cat: string) => {
-  // Los errores siempre están permitidos (válvula de escape)
-  if (cat.startsWith('ERRORES')) return true;
+  const editRallyAction = (index: number) => {
+    const actionToEdit = currentRallyActions[index];
+    if (!actionToEdit) return;
 
-  let context: string;
+    setEditingIndex(index);
+    // No eliminamos la acción del store, simplemente la marcamos para edición.
+    // Pero addRallyAction con index sobrescribirá en esa posición.
+    // Por simplicidad, mantenemos el estado local.
+    setSelectedPlayerId(actionToEdit.playerId);
+    setPendingAction({
+      playerId: actionToEdit.playerId,
+      category: actionToEdit.category,
+      subAction: actionToEdit.subAction,
+      value: undefined,
+      origin: actionToEdit.origin,
+      destination: actionToEdit.destination,
+    });
+  };
 
-  if (editingIndex !== null) {
-    // CASO EDICIÓN: El contexto es lo que pasó justo ANTES de la acción que edito
-    if (editingIndex === 0) {
-      context = 'START';
-    } else {
-      // Miramos la categoría de la acción anterior en el rally
-      context = currentRally[editingIndex - 1]?.category || 'START';
+  // ----- Cometer punto y gestión de sets -----
+  const commitPoint = (teamWhoWon: "A" | "B") => {
+    // Cerrar el rally actual y asignar el punto
+    finishRally(teamWhoWon);
+
+    // Leer el estado actualizado del store inmediatamente (síncrono)
+    const updatedState = useMatchStore.getState();
+    const updatedScore = updatedState.currentMatch?.score;
+    if (!updatedScore) return;
+
+    const newPointsA = updatedScore.pointsA;
+    const newPointsB = updatedScore.pointsB;
+    const pointsToWin = currentSet <= 2 ? 21 : 15;
+    const leadingScore = teamWhoWon === "A" ? newPointsA : newPointsB;
+    const trailingScore = teamWhoWon === "A" ? newPointsB : newPointsA;
+
+    if (leadingScore >= pointsToWin && leadingScore - trailingScore >= 2) {
+      // Fin del set
+      if (teamWhoWon === "A") incrementSetsA();
+      else incrementSetsB();
+
+      // Resetear puntos y cambiar de set
+      setPointsA(0);
+      setPointsB(0);
+      setCurrentSet(currentSet + 1);
     }
-  } else {
-    // CASO NORMAL: El contexto es la última acción grabada en el rally
-    if (currentRally.length === 0) {
-      context = 'START';
-    } else {
-      context = currentRally[currentRally.length - 1].category;
-    }
-  }
+    // No se necesita clearRally porque finishRally ya cerró el rally
+  };
 
-  const allowedActions = ACTION_FLOW[context];
-  
-  // Si por alguna razón el contexto no existe en el flujo (ej. START), 
-  // permitimos SERVICIO por defecto.
-  if (!allowedActions) return cat === 'SERVICIO';
-  
-  return allowedActions.includes(cat);
-};
+  // Limpiar rally en curso (cancelar)
+  const clearRally = () => {
+    clearCurrentRally();
+    setPendingAction(null);
+    setSelectedPlayerId(null);
+    setEditingIndex(null);
+  };
+
+  // ----- Validación de acciones permitidas -----
+  const canPerformAction = (cat: string) => {
+    if (cat.startsWith("ERRORES")) return true;
+
+    let context: string;
+    if (editingIndex !== null) {
+      context =
+        editingIndex === 0
+          ? "START"
+          : currentRallyActions[editingIndex - 1]?.category || "START";
+    } else {
+      context =
+        currentRallyActions.length === 0
+          ? "START"
+          : currentRallyActions[currentRallyActions.length - 1].category;
+    }
+
+    const allowed = ACTION_FLOW[context];
+    if (!allowed) return cat === "SERVICIO";
+    return allowed.includes(cat);
+  };
 
   return {
-    score: { A: scoreA, B: scoreB },
+    score: { A: pointsA, B: pointsB },
     sets: { A: setsA, B: setsB },
     wind: { A: windA, B: swapWindDirection(windA) },
     currentSet,
-    currentRally,
+    currentRally: currentRallyActions,
+    rallyHistory,
     mustSwitchSide,
     selectedPlayerId,
     pendingAction,
@@ -227,10 +245,16 @@ const canPerformAction = (cat: string) => {
     handlePlayerSelect,
     handleActionClick,
     confirmActionValue,
-    updatePendingZones, // Función clave para cerrar el scouting
+    updatePendingZones,
     commitPoint,
     clearRally,
     toggleWind,
-    editRallyAction
+    editRallyAction,
+    // Por si la UI necesita modificar directamente
+    setPointsA,
+    setPointsB,
+    setCurrentSet,
+    incrementSetsA,
+    incrementSetsB,
   };
 };
