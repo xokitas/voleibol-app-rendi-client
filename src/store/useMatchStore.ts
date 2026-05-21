@@ -48,6 +48,7 @@ export interface MatchConfig {
   // Equipos
   teamA: { name: string; players: { number: string; fullName: string }[] };
   teamB: { name: string; players: { number: string; fullName: string }[] };
+  platform?: "web" | "mobile";
 }
 
 /** El objeto Match completo */
