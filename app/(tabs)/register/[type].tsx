@@ -1,3 +1,4 @@
+// app/(tabs)/register/[type].tsx
 import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -16,8 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
 
-//Traductor para el backend
-
+// Traductor para el backend (sin cambios)
 const MESO_MAP = {
   Entrante: "ENT",
   Básico: "BAS",
@@ -79,7 +79,7 @@ const FormRow = ({
   </View>
 );
 
-// --- 2. COMPONENTE PARA TEXTO ---
+// --- 2. COMPONENTE PARA TEXTO (adaptado a móvil) ---
 const SmartInput = ({
   label,
   value,
@@ -88,17 +88,23 @@ const SmartInput = ({
 }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
+  const isMobile = width < 1024;
+
   return (
     <View
-      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${
+        isMobile ? "h-8" : "h-12"
+      } bg-slate-50 px-2`}
     >
       {isPC && (
-        <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+        <Text
+          style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+        >
           {label}:
         </Text>
       )}
       <TextInput
-        style={tw`flex-1 h-full text-slate-700 text-sm`}
+        style={tw`flex-1 h-full text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}
         value={value}
         placeholder={isPC ? "" : label}
         placeholderTextColor="#94A3B8"
@@ -109,7 +115,7 @@ const SmartInput = ({
   );
 };
 
-// --- 3. SELECTOR ESTILIZADO (Sustituye al Picker feo) ---
+// --- 3. SELECTOR ESTILIZADO (adaptado a móvil) ---
 const SmartSelect = ({
   label,
   options,
@@ -121,23 +127,25 @@ const SmartSelect = ({
 }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
+  const isMobile = width < 1024;
 
   return (
     <View style={{ flex: 1, zIndex: 100 }}>
       <TouchableOpacity
         onPress={() => setIsOpen(!isOpen ? label || value : null)}
         activeOpacity={0.8}
-        style={tw`${isMini ? "h-9 border-slate-200 px-1" : "h-12 border-slate-300 px-3"} flex-row items-center border rounded-lg bg-slate-50`}
+        style={tw`${isMini ? "h-7 px-1" : isMobile ? "h-8 px-2" : "h-12 px-3"} flex-row items-center border rounded-lg bg-slate-50 ${isMini ? "border-slate-200" : "border-slate-300"}`}
       >
-        {/* MODIFICACIÓN: Si es mini, NO renderizamos el label ni los puntos */}
         {isPC && !isMini && label !== "" && (
-          <Text style={tw`font-bold text-[#003366] text-xs mr-1 uppercase`}>
+          <Text
+            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+          >
             {label}:
           </Text>
         )}
 
         <Text
-          style={tw`text-slate-700 ${isMini ? "text-[11px]" : "text-sm"} flex-1 font-medium text-center`}
+          style={tw`text-slate-700 ${isMini ? "text-[9px]" : isMobile ? "text-xs" : "text-sm"} flex-1 font-medium text-center`}
           numberOfLines={1}
         >
           {value}
@@ -145,7 +153,7 @@ const SmartSelect = ({
 
         <Ionicons
           name={isOpen ? "chevron-up" : "chevron-down"}
-          size={isMini ? 8 : 14}
+          size={isMini ? 8 : isMobile ? 12 : 14}
           color="#003366"
         />
       </TouchableOpacity>
@@ -156,10 +164,10 @@ const SmartSelect = ({
           style={[
             tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
             {
-              top: isMini ? 34 : 50,
+              top: isMini ? 30 : isMobile ? 34 : 50,
               zIndex: 9999,
               elevation: 10,
-              minWidth: isMini ? 100 : "auto",
+              minWidth: isMini ? 80 : "auto",
             },
           ]}
         >
@@ -167,14 +175,14 @@ const SmartSelect = ({
             <TouchableOpacity
               key={opt}
               onPress={(event) => {
-                event.stopPropagation(); // evita que el clic cierre el menú
+                event.stopPropagation();
                 onSelect(opt);
                 setIsOpen(null);
               }}
-              style={tw`${isMini ? "p-2" : "p-4"} border-b border-slate-100`}
+              style={tw`${isMini || isMobile ? "p-2" : "p-4"} border-b border-slate-100`}
             >
               <Text
-                style={tw`text-slate-700 ${isMini ? "text-[10px]" : "text-sm"}`}
+                style={tw`text-slate-700 ${isMini ? "text-[8px]" : isMobile ? "text-xs" : "text-sm"}`}
               >
                 {opt}
               </Text>
@@ -186,20 +194,24 @@ const SmartSelect = ({
   );
 };
 
-// --- 4. FECHA Y HORA (Corregido el error de no abrirse) ---
+// --- 4. FECHA Y HORA (adaptado a móvil) ---
 const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
+  const isMobile = width < 1024;
   const [show, setShow] = useState(false);
 
-  // Detectamos si es Web para usar el input nativo del navegador
   if (Platform.OS === "web") {
     return (
       <View
-        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${
+          isMobile ? "h-8" : "h-12"
+        } bg-slate-50 px-2`}
       >
         {isPC && (
-          <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+          <Text
+            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+          >
             {label}:
           </Text>
         )}
@@ -210,10 +222,9 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
             border: "none",
             backgroundColor: "transparent",
             color: "#334155",
-            fontSize: "14px",
+            fontSize: isMobile ? "12px" : "14px",
             outline: "none",
           }}
-          // Formateo de fecha para que el input HTML lo entienda (YYYY-MM-DD)
           value={
             value instanceof Date
               ? mode === "date"
@@ -239,20 +250,23 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
     );
   }
 
-  // --- CÓDIGO PARA MÓVIL (Android/iOS) ---
   return (
     <View style={tw`flex-1`}>
       <TouchableOpacity
         onPress={() => setShow(true)}
         activeOpacity={0.7}
-        style={tw`flex-row items-center border border-slate-300 rounded-lg h-12 bg-slate-50 px-3`}
+        style={tw`flex-row items-center border border-slate-300 rounded-lg ${
+          isMobile ? "h-8" : "h-12"
+        } bg-slate-50 px-2`}
       >
         {isPC && (
-          <Text style={tw`font-bold text-[#003366] text-xs mr-2 uppercase`}>
+          <Text
+            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+          >
             {label}:
           </Text>
         )}
-        <Text style={tw`text-slate-700 text-sm`}>
+        <Text style={tw`text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}>
           {value instanceof Date
             ? mode === "date"
               ? value.toLocaleDateString()
@@ -288,6 +302,9 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
 export default function RegisterDataScreen() {
   const { type } = useLocalSearchParams();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 1024;
+
   const setInitialMatchData = useMatchStore(
     (state) => state.setInitialMatchData,
   );
@@ -327,6 +344,8 @@ export default function RegisterDataScreen() {
 
   const handleStartEvent = () => {
     const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
+    const currentPlatform: "web" | "mobile" =
+      Platform.OS === "web" ? "web" : "mobile";
     const matchConfig = {
       tournament: formData.denomination || `${formData.meso} ${formData.micro}`,
       category: formData.category,
@@ -354,6 +373,7 @@ export default function RegisterDataScreen() {
           .map((p) => ({ number: p.number, fullName: p.fullName }))
           .filter((p) => p.number !== ""),
       },
+      platform: currentPlatform,
     };
 
     const matchId = setInitialMatchData(matchConfig);
@@ -368,11 +388,9 @@ export default function RegisterDataScreen() {
     value: string,
   ) => {
     const setter = team === "A" ? setPlayersA : setPlayersB;
-
     setter((prevPlayers) =>
       prevPlayers.map((player, i) => {
         if (i === index) {
-          // Retornamos un nuevo objeto con el campo actualizado
           return { ...player, [field]: value };
         }
         return player;
@@ -550,14 +568,15 @@ export default function RegisterDataScreen() {
         dark={false}
         showQuickNav={true}
         onBack={() => router.replace("/(tabs)/menu")}
+        compact={isMobile}
       />
 
       <ScrollView
-        contentContainerStyle={tw`p-5 pt-16 pb-20`}
+        contentContainerStyle={tw`${isMobile ? "p-3 pt-2 pb-10" : "p-5 pt-16 pb-20"}`}
         style={{ flex: 1 }}
       >
         <Text
-          style={tw`text-2xl font-black text-[#003366] text-center mb-6 uppercase`}
+          style={tw`${isMobile ? "text-sm" : "text-2xl"} font-black text-[#003366] text-center mb-4 uppercase`}
         >
           {type === "oficial"
             ? "Competencia Oficial"
@@ -592,16 +611,18 @@ export default function RegisterDataScreen() {
         </FormRow>
 
         {/* --- SECCIÓN DE PARTICIPANTES (EQUIPO A VS EQUIPO B) --- */}
-        <View style={tw`flex-row items-center gap-3 my-4`}>
+        <View style={tw`flex-row items-center gap-2 my-3`}>
           <TextInput
-            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold`}
+            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${isMobile ? "text-sm" : "text-lg"} font-bold`}
             placeholder="Equipo A"
             value={teamA}
             onChangeText={setTeamA}
           />
-          <Text style={tw`font-black text-lg`}>VS</Text>
+          <Text style={tw`font-black ${isMobile ? "text-base" : "text-lg"}`}>
+            VS
+          </Text>
           <TextInput
-            style={tw`flex-1 border-b-2 border-[#003366] p-2 text-lg font-bold text-right`}
+            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${isMobile ? "text-sm" : "text-lg"} font-bold text-right`}
             placeholder="Equipo B"
             value={teamB}
             onChangeText={setTeamB}
@@ -609,15 +630,25 @@ export default function RegisterDataScreen() {
         </View>
 
         {/* --- TABLA EQUIPO A --- */}
-        <View style={tw`flex-row justify-between items-center mb-2`}>
-          <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamA}</Text>
+        <View style={tw`flex-row justify-between items-center mb-1`}>
+          <Text
+            style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
+          >
+            Jugadores de {teamA}
+          </Text>
           {type === "entrenamiento" && (
             <TouchableOpacity
               onPress={() => addPlayer("A")}
-              style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}
+              style={tw`flex-row items-center bg-slate-100 px-2 py-0.5 rounded`}
             >
-              <Ionicons name="add-circle" size={16} color="#003366" />
-              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>
+              <Ionicons
+                name="add-circle"
+                size={isMobile ? 14 : 16}
+                color="#003366"
+              />
+              <Text
+                style={tw`text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} font-bold ml-1`}
+              >
                 Añadir
               </Text>
             </TouchableOpacity>
@@ -625,16 +656,28 @@ export default function RegisterDataScreen() {
         </View>
 
         {/* Header Tabla Equipo A */}
-        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
-          <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>
+        <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
+          <Text
+            style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
+            No
+          </Text>
+          <Text
+            style={tw`flex-1 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} ml-1`}
+          >
             Nombre y Apellidos
           </Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>
+          <Text
+            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
             Posición
           </Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
-          {type === "entrenamiento" && <Text style={tw`w-8`}></Text>}
+          <Text
+            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
+            Zona
+          </Text>
+          {type === "entrenamiento" && <Text style={tw`w-6`}></Text>}
         </View>
 
         {playersA.map((p, i) => (
@@ -646,20 +689,20 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`}
+              style={tw`w-6 text-center border border-slate-100 rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("A", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`}
+              style={tw`flex-1 ml-1 border border-slate-100 rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("A", i, "fullName", v)}
             />
 
             {/* Selector de Posición Equipo A */}
-            <View style={tw`w-24 px-1`}>
+            <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -685,7 +728,7 @@ export default function RegisterDataScreen() {
             </View>
 
             {/* Selector de Zona Equipo A */}
-            <View style={tw`w-24 px-1`}>
+            <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -711,24 +754,38 @@ export default function RegisterDataScreen() {
             {type === "entrenamiento" && (
               <TouchableOpacity
                 onPress={() => removePlayer("A", i)}
-                style={tw`w-8 items-center`}
+                style={tw`w-6 items-center`}
               >
-                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                <Ionicons
+                  name="trash-outline"
+                  size={isMobile ? 12 : 14}
+                  color="#EF4444"
+                />
               </TouchableOpacity>
             )}
           </View>
         ))}
 
         {/* --- TABLA EQUIPO B --- */}
-        <View style={tw`flex-row justify-between items-center mt-8 mb-2`}>
-          <Text style={tw`text-[#003366] font-bold`}>Jugadores de {teamB}</Text>
+        <View style={tw`flex-row justify-between items-center mt-6 mb-1`}>
+          <Text
+            style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
+          >
+            Jugadores de {teamB}
+          </Text>
           {type === "entrenamiento" && (
             <TouchableOpacity
               onPress={() => addPlayer("B")}
-              style={tw`flex-row items-center bg-slate-100 px-2 py-1 rounded`}
+              style={tw`flex-row items-center bg-slate-100 px-2 py-0.5 rounded`}
             >
-              <Ionicons name="add-circle" size={16} color="#003366" />
-              <Text style={tw`text-[#003366] text-xs font-bold ml-1`}>
+              <Ionicons
+                name="add-circle"
+                size={isMobile ? 14 : 16}
+                color="#003366"
+              />
+              <Text
+                style={tw`text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} font-bold ml-1`}
+              >
                 Añadir
               </Text>
             </TouchableOpacity>
@@ -736,16 +793,28 @@ export default function RegisterDataScreen() {
         </View>
 
         {/* Header Tabla Equipo B */}
-        <View style={tw`bg-slate-200 flex-row p-2 rounded-t-lg`}>
-          <Text style={tw`w-8 font-bold text-[18px] text-center`}>No</Text>
-          <Text style={tw`flex-1 font-bold text-[18px] ml-2`}>
+        <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
+          <Text
+            style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
+            No
+          </Text>
+          <Text
+            style={tw`flex-1 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} ml-1`}
+          >
             Nombre y Apellidos
           </Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>
+          <Text
+            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
             Posición
           </Text>
-          <Text style={tw`w-24 font-bold text-[18px] text-center`}>Zona</Text>
-          {type === "entrenamiento" && <Text style={tw`w-8`}></Text>}
+          <Text
+            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+          >
+            Zona
+          </Text>
+          {type === "entrenamiento" && <Text style={tw`w-6`}></Text>}
         </View>
 
         {playersB.map((p, i) => (
@@ -757,20 +826,20 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`w-8 text-center border border-slate-100 rounded text-[13px] h-8`}
+              style={tw`w-6 text-center border border-slate-100 rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("B", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-2 border border-slate-100 rounded px-2 text-[13px] h-8`}
+              style={tw`flex-1 ml-1 border border-slate-100 rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("B", i, "fullName", v)}
             />
 
             {/* Selector de Posición Equipo B */}
-            <View style={tw`w-24 px-1`}>
+            <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -796,7 +865,7 @@ export default function RegisterDataScreen() {
             </View>
 
             {/* Selector de Zona Equipo B */}
-            <View style={tw`w-24 px-1`}>
+            <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -822,29 +891,39 @@ export default function RegisterDataScreen() {
             {type === "entrenamiento" && (
               <TouchableOpacity
                 onPress={() => removePlayer("B", i)}
-                style={tw`w-8 items-center`}
+                style={tw`w-6 items-center`}
               >
-                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                <Ionicons
+                  name="trash-outline"
+                  size={isMobile ? 12 : 14}
+                  color="#EF4444"
+                />
               </TouchableOpacity>
             )}
           </View>
         ))}
 
         {/* --- BOTÓN DE ACCIÓN FINAL --- */}
-        <View style={tw`mt-10 mb-10`}>
+        <View style={tw`mt-8 mb-8`}>
           <TouchableOpacity
             onPress={handleStartEvent}
             activeOpacity={0.8}
-            style={tw`bg-[#003366] py-4 rounded-2xl shadow-lg flex-row justify-center items-center`}
+            style={tw`bg-[#003366] ${isMobile ? "py-3" : "py-4"} rounded-2xl shadow-lg flex-row justify-center items-center`}
           >
-            <Ionicons name="play-circle" size={24} color="white" />
-            <Text style={tw`text-white font-black text-lg ml-2 uppercase`}>
+            <Ionicons
+              name="play-circle"
+              size={isMobile ? 20 : 24}
+              color="white"
+            />
+            <Text
+              style={tw`text-white ${isMobile ? "text-sm" : "text-lg"} font-black ml-2 uppercase`}
+            >
               Comenzar Registro de Evento
             </Text>
           </TouchableOpacity>
 
           <Text
-            style={tw`text-slate-400 text-[10px] text-center mt-2 uppercase`}
+            style={tw`text-slate-400 ${isMobile ? "text-[8px]" : "text-[10px]"} text-center mt-2 uppercase`}
           >
             Al continuar, se confirmarán las nóminas de ambos equipos.
           </Text>
