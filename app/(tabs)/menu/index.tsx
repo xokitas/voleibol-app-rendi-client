@@ -41,19 +41,17 @@ export default function MenuScreen() {
 
   return (
     <SafeAreaView style={tw`flex-1 bg-[#F8F8FF]`} edges={["top"]}>
-      {/* Header más compacto en móvil */}
       <HeaderMenu
         title={isMobile ? "Menú" : "Menú de Opciones"}
         onBack={() => router.replace("/")}
         dark={false}
         showQuickNav={false}
-        compact={isMobile} // ← prop para achicar el header
+        compact={isMobile}
       />
 
       <ScrollView
         contentContainerStyle={tw`${isMobile ? "px-2 py-1" : "p-6 pt-4"}`}
       >
-        {/* Título reducido */}
         <View style={tw`${isMobile ? "mb-2" : "mb-8"}`}>
           <Text
             style={tw`${
@@ -64,7 +62,6 @@ export default function MenuScreen() {
           </Text>
         </View>
 
-        {/* Fila de 3 botones principales (más pequeños) */}
         <View
           style={tw`flex-row justify-between ${
             isMobile ? "gap-1 mb-2" : "gap-2 mb-8"
@@ -198,6 +195,35 @@ export default function MenuScreen() {
                 />
               </TouchableOpacity>
             ))}
+
+            {/* Quinta opción solo para Visualizar Resultados */}
+            {activeTab === "vis" && (
+              <TouchableOpacity
+                style={tw`flex-row items-center bg-slate-50 ${
+                  isMobile ? "p-1.5" : "p-4"
+                } rounded-xl mb-1.5 border border-slate-100`}
+                activeOpacity={0.6}
+                onPress={() => router.push("/(tabs)/results/aggregated" as any)}
+              >
+                <Ionicons
+                  name="stats-chart-outline"
+                  size={isMobile ? 14 : 20}
+                  color="#003366"
+                />
+                <Text
+                  style={tw`flex-1 ml-2 text-slate-700 ${
+                    isMobile ? "text-[10px]" : "text-sm"
+                  } font-semibold`}
+                >
+                  Estadísticas avanzadas
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={isMobile ? 12 : 16}
+                  color="#CBD5E1"
+                />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>

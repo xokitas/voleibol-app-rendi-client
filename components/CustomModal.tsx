@@ -13,7 +13,6 @@ interface CustomModalProps {
   onCancel: () => void;
   confirmText?: string;
   cancelText?: string;
-  // Botón secundario opcional
   onSecondary?: () => void;
   secondaryText?: string;
 }
@@ -44,6 +43,9 @@ export default function CustomModal({
 
   const config = colorMap[type];
 
+  // Número de botones: cancelar siempre, confirmar siempre, secundario opcional
+  const buttonCount = 2 + (onSecondary ? 1 : 0);
+
   return (
     <Modal transparent animationType="fade" visible={visible}>
       <View
@@ -67,10 +69,11 @@ export default function CustomModal({
             {message}
           </Text>
 
-          <View style={tw`flex-row justify-end gap-3 flex-wrap`}>
+          {/* Botones siempre en una fila, sin wrap */}
+          <View style={tw`flex-row gap-2`}>
             <TouchableOpacity
               onPress={onCancel}
-              style={tw`px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800`}
+              style={tw`flex-1 px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 items-center`}
             >
               <Text style={tw`text-slate-300 font-bold text-xs uppercase`}>
                 {cancelText}
@@ -81,9 +84,9 @@ export default function CustomModal({
               <TouchableOpacity
                 onPress={() => {
                   onSecondary();
-                  onCancel(); // cerrar modal después de la acción secundaria
+                  onCancel();
                 }}
-                style={tw`px-5 py-2.5 rounded-xl border border-slate-600 bg-slate-700`}
+                style={tw`flex-1 px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-700 items-center`}
               >
                 <Text style={tw`text-white font-bold text-xs uppercase`}>
                   {secondaryText}
@@ -94,9 +97,9 @@ export default function CustomModal({
             <TouchableOpacity
               onPress={() => {
                 onConfirm();
-                onCancel(); // cerrar modal después de confirmar
+                onCancel();
               }}
-              style={tw`px-5 py-2.5 rounded-xl ${config.bg} shadow-lg`}
+              style={tw`flex-1 px-3 py-2.5 rounded-xl ${config.bg} shadow-lg items-center`}
             >
               <Text style={tw`text-white font-black text-xs uppercase`}>
                 {confirmText}

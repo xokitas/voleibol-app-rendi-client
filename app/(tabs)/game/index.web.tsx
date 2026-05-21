@@ -144,6 +144,7 @@ export default function GameScreenWeb() {
   const router = useRouter();
   const currentMatch = useMatchStore((s) => s.currentMatch);
   const saveCurrentMatch = useMatchStore((s) => s.saveCurrentMatch);
+  const clearCurrentMatch = useMatchStore((s) => s.clearCurrentMatch);
   const eventData = currentMatch?.config;
 
   // Redirigir si no hay partido cargado
@@ -383,15 +384,25 @@ export default function GameScreenWeb() {
   const handleExit = () => {
     showModal(
       "Salir del partido",
-      "El rally actual se perderá. El partido permanecerá en curso y podrás volver más tarde.",
+      "Elige qué hacer con el partido actual:",
       "warning",
+      // onConfirm: Guardar y salir
       () => {
-        // Limpiamos el rally en curso (opcional, para no dejar acciones a medias)
-        clearRally();
+        saveCurrentMatch("partial");
+        timers.stopRealTime();
+        timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
-      undefined,
-      "Salir",
+      // onSecondary: Salir sin guardar
+      () => {
+        clearRally(); // limpia el rally en curso
+        clearCurrentMatch(); // descarta el partido completamente
+        timers.stopRealTime();
+        timers.stopTotalTime();
+        router.replace("/(tabs)/menu");
+      },
+      "Guardar y salir", // confirmText
+      "Salir sin guardar", // secondaryText
     );
   };
 
@@ -429,7 +440,7 @@ export default function GameScreenWeb() {
     );
   };
 
-  // Renderizado de columnas
+  // Renderizado de columnas (ahora sin bloqueo, solo con resaltado)
   const renderActionColumn = (
     title: string,
     category: string,
@@ -437,10 +448,11 @@ export default function GameScreenWeb() {
     isDouble = false,
   ) => {
     const bgColor = categoryColors[category] || "bg-slate-800";
-    const isAllowed = canPerformAction(category);
+    const isSuggested = canPerformAction(category);
+
     const columnStyle = isDouble
-      ? tw`flex-1 min-w-[35px] ${isStatsOpen ? "min-w-[150px]" : "max-w-[155px]"} ${!isAllowed ? "opacity-20" : ""}`
-      : tw`flex-1 min-w-[35px] max-w-[75px] ${!isAllowed ? "opacity-20" : ""}`;
+      ? tw`flex-1 min-w-[35px] ${isStatsOpen ? "min-w-[150px]" : "max-w-[155px]"}`
+      : tw`flex-1 min-w-[35px] max-w-[75px]`;
 
     return (
       <View style={columnStyle}>
@@ -462,15 +474,22 @@ export default function GameScreenWeb() {
             >
               <TouchableOpacity
                 onPress={() => handleActionClick(category, sub)}
-                disabled={!isAllowed}
                 style={[
                   tw`py-2 rounded-lg border-b-2 items-center justify-center shadow-sm`,
+                  // Sub‑acción actualmente seleccionada (pendiente)
                   pendingAction?.subAction === sub
                     ? [
                         tw`border-white scale-105`,
                         { backgroundColor: "#ffffff" },
                       ]
-                    : [tw`border-black/10`, tw`${bgColor}`],
+                    : [
+                        tw`border-black/10`,
+                        tw`${bgColor}`,
+                        // Categoría sugerida → borde blanco
+                        isSuggested
+                          ? tw`border-white border-2`
+                          : tw`opacity-70`, // No sugerida → opacidad reducida
+                      ],
                 ]}
               >
                 <Text

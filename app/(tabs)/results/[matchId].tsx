@@ -5,14 +5,16 @@ import React, { useMemo, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
-import RadarChart from "../../../components/RadarChart";
+import StatsPanel, {
+  CategoryStats
+} from "../../../components/results/StatsPanel";
 import tw from "../../../lib/tailwind";
 import {
-    useMatchStore,
-    type RallyAction,
+  useMatchStore,
+  type RallyAction,
 } from "../../../src/store/useMatchStore";
 
-// Mapa de valores máximos por sub‑acción (el mismo de la pantalla de juego)
+// Constantes (sin cambios)
 const actionAllowedValues: Record<string, number[]> = {
   SFC: [0],
   SR: [0],
@@ -42,24 +44,33 @@ const actionAllowedValues: Record<string, number[]> = {
   Rd: [4],
 };
 
+const ALL_SUB_ACTIONS: Record<string, string[]> = {
+  SERVICIO: ["BAJ", "FLO", "SAL", "SAF"],
+  RECEPCION: ["2ma", "Ppm"],
+  ACOMODADA: ["P2a", "P2b"],
+  ATAQUE: ["Rm", "Rca", "Ub", "Tr", "Acd", "Rdjn", "Rdpmp", "Rd"],
+  BLOQUEO: ["Bl", "Bd", "Bn"],
+  DEFENSA: ["Dd", "Dltd", "Ld", "Cc"],
+  ERRORES_SERV: ["SFC", "SR", "SME"],
+  ERRORES_COM: ["CI", "MC"],
+  ERRORES_POS: ["NAT", "CJR", "MCA", "JFZ"],
+  ERRORES_TEC: ["GMD", "TI", "MER", "BTR"],
+};
+
 const getMaxValue = (subAction: string): number => {
   const allowed = actionAllowedValues[subAction];
   if (!allowed) return 4;
   return Math.max(...allowed);
 };
 
-const categoryColors: Record<string, string> = {
-  SERVICIO: "bg-blue-200 text-blue-900",
-  RECEPCION: "bg-green-200 text-green-900",
-  ACOMODADA: "bg-pink-200 text-pink-900",
-  ATAQUE: "bg-yellow-200 text-yellow-900",
-  BLOQUEO: "bg-purple-200 text-purple-900",
-  DEFENSA: "bg-emerald-200 text-emerald-900",
-  ERRORES_SERV: "bg-gray-300 text-gray-900",
-  ERRORES_COM: "bg-gray-300 text-gray-900",
-  ERRORES_POS: "bg-gray-300 text-gray-900",
-  ERRORES_TEC: "bg-gray-300 text-gray-900",
-};
+// Interfaz local para las estadísticas del equipo
+interface TeamStats {
+  totalActions: number;
+  errors: number;
+  effectiveness: number;
+  errorEffectiveness: number;
+  categories: Record<string, CategoryStats>;
+}
 
 export default function MatchDetailScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -91,12 +102,17 @@ export default function MatchDetailScreen() {
     return "No definido";
   };
 
-  const allPlayers = [
-    ...match.config.teamA.players.map((p) => ({ ...p, team: "A" })),
-    ...match.config.teamB.players.map((p) => ({ ...p, team: "B" })),
-  ];
+  const teamAPlayers = match.config.teamA.players.map((p) => ({
+    ...p,
+    team: "A",
+  }));
+  const teamBPlayers = match.config.teamB.players.map((p) => ({
+    ...p,
+    team: "B",
+  }));
+  const allPlayers = [...teamAPlayers, ...teamBPlayers];
 
-  // ===== ESTADÍSTICAS CON EFECTIVIDAD NETA =====
+  // Estadísticas individuales
   const playerStats = useMemo(() => {
     const statsMap: Record<
       string,
@@ -104,24 +120,8 @@ export default function MatchDetailScreen() {
         totalActions: number;
         errors: number;
         effectiveness: number;
-        categories: Record<
-          string,
-          {
-            total: number;
-            positive: number;
-            negative: number;
-            effectiveness: number;
-            subs: Record<
-              string,
-              {
-                total: number;
-                positive: number;
-                negative: number;
-                effectiveness: number;
-              }
-            >;
-          }
-        >;
+        errorEffectiveness: number;
+        categories: Record<string, CategoryStats>;
       }
     > = {};
 
@@ -131,8 +131,30 @@ export default function MatchDetailScreen() {
         totalActions: 0,
         errors: 0,
         effectiveness: 0,
+        errorEffectiveness: 0,
         categories: {},
       };
+      Object.entries(ALL_SUB_ACTIONS).forEach(([cat, subs]) => {
+        if (!statsMap[id].categories[cat]) {
+          statsMap[id].categories[cat] = {
+            total: 0,
+            positive: 0,
+            negative: 0,
+            effectiveness: 0,
+            subs: {},
+          };
+        }
+        subs.forEach((sub) => {
+          if (!statsMap[id].categories[cat].subs[sub]) {
+            statsMap[id].categories[cat].subs[sub] = {
+              total: 0,
+              positive: 0,
+              negative: 0,
+              effectiveness: 0,
+            };
+          }
+        });
+      });
     });
 
     match.history.forEach((set) => {
@@ -140,17 +162,14 @@ export default function MatchDetailScreen() {
         rally.actions.forEach((action: RallyAction) => {
           const playerId = action.playerId;
           if (!statsMap[playerId]) return;
-
           const player = statsMap[playerId];
           player.totalActions++;
           if (action.category.startsWith("ERRORES")) player.errors++;
-
           const cat = action.category;
           const sub = action.subAction;
           const maxVal = getMaxValue(sub);
           const isPositive = (action.value ?? 0) === maxVal;
           const isNegative = (action.value ?? 0) === 0;
-
           if (!player.categories[cat]) {
             player.categories[cat] = {
               total: 0,
@@ -163,7 +182,6 @@ export default function MatchDetailScreen() {
           player.categories[cat].total++;
           if (isPositive) player.categories[cat].positive++;
           if (isNegative) player.categories[cat].negative++;
-
           if (!player.categories[cat].subs[sub]) {
             player.categories[cat].subs[sub] = {
               total: 0,
@@ -183,93 +201,287 @@ export default function MatchDetailScreen() {
       const player = statsMap[id];
       let totalPos = 0,
         totalNeg = 0;
+      let errorPos = 0,
+        errorNeg = 0,
+        errorTotal = 0;
 
-      Object.values(player.categories).forEach((cat) => {
-        cat.effectiveness =
-          cat.total > 0 ? ((cat.positive - cat.negative) / cat.total) * 100 : 0;
-        totalPos += cat.positive;
-        totalNeg += cat.negative;
+      Object.entries(player.categories).forEach(([catName, catData]) => {
+        catData.effectiveness =
+          catData.total > 0
+            ? ((catData.positive - catData.negative) / catData.total) * 100
+            : 0;
+        totalPos += catData.positive;
+        totalNeg += catData.negative;
 
-        Object.values(cat.subs).forEach((sub) => {
-          sub.effectiveness =
-            sub.total > 0
-              ? ((sub.positive - sub.negative) / sub.total) * 100
+        Object.entries(catData.subs).forEach(([subName, subData]) => {
+          subData.effectiveness =
+            subData.total > 0
+              ? ((subData.positive - subData.negative) / subData.total) * 100
               : 0;
         });
+
+        if (catName.startsWith("ERRORES")) {
+          errorPos += catData.positive;
+          errorNeg += catData.negative;
+          errorTotal += catData.total;
+        }
       });
 
       player.effectiveness =
         player.totalActions > 0
           ? ((totalPos - totalNeg) / player.totalActions) * 100
           : 0;
+      player.errorEffectiveness =
+        errorTotal > 0 ? ((errorPos - errorNeg) / errorTotal) * 100 : 0;
     });
 
     return statsMap;
   }, [match, allPlayers]);
 
-  // ===== COMPONENTE DE TARJETA DE JUGADOR =====
-  const PlayerCard = ({ player }: { player: (typeof allPlayers)[0] }) => {
+  // Agregaciones por equipo
+  const teamAggregatedStats: { A: TeamStats; B: TeamStats } = useMemo(() => {
+    const aggregate = (players: typeof teamAPlayers): TeamStats => {
+      const categories: Record<string, CategoryStats> = {};
+      let totalActions = 0,
+        totalErrors = 0,
+        totalPos = 0,
+        totalNeg = 0;
+      let errorPos = 0,
+        errorNeg = 0,
+        errorTotal = 0;
+
+      Object.entries(ALL_SUB_ACTIONS).forEach(([cat, subs]) => {
+        categories[cat] = {
+          total: 0,
+          positive: 0,
+          negative: 0,
+          effectiveness: 0,
+          subs: {},
+        };
+        subs.forEach((sub) => {
+          categories[cat].subs[sub] = {
+            total: 0,
+            positive: 0,
+            negative: 0,
+            effectiveness: 0,
+          };
+        });
+      });
+
+      players.forEach((p) => {
+        const id = `${p.team}-${p.number}`;
+        const s = playerStats[id];
+        if (!s) return;
+        totalActions += s.totalActions;
+        totalErrors += s.errors;
+        Object.entries(s.categories).forEach(([cat, data]) => {
+          if (!categories[cat]) {
+            categories[cat] = {
+              total: 0,
+              positive: 0,
+              negative: 0,
+              effectiveness: 0,
+              subs: {},
+            };
+          }
+          categories[cat].total += data.total;
+          categories[cat].positive += data.positive;
+          categories[cat].negative += data.negative;
+          totalPos += data.positive;
+          totalNeg += data.negative;
+          if (cat.startsWith("ERRORES")) {
+            errorPos += data.positive;
+            errorNeg += data.negative;
+            errorTotal += data.total;
+          }
+          Object.entries(data.subs).forEach(([sub, subData]) => {
+            if (!categories[cat].subs[sub]) {
+              categories[cat].subs[sub] = {
+                total: 0,
+                positive: 0,
+                negative: 0,
+                effectiveness: 0,
+              };
+            }
+            categories[cat].subs[sub].total += subData.total;
+            categories[cat].subs[sub].positive += subData.positive;
+            categories[cat].subs[sub].negative += subData.negative;
+          });
+        });
+      });
+
+      // Calcular efectividades
+      Object.keys(categories).forEach((cat) => {
+        const catData = categories[cat];
+        catData.effectiveness =
+          catData.total > 0
+            ? ((catData.positive - catData.negative) / catData.total) * 100
+            : 0;
+        Object.keys(catData.subs).forEach((sub) => {
+          const subData = catData.subs[sub];
+          subData.effectiveness =
+            subData.total > 0
+              ? ((subData.positive - subData.negative) / subData.total) * 100
+              : 0;
+        });
+      });
+      const effectiveness =
+        totalActions > 0 ? ((totalPos - totalNeg) / totalActions) * 100 : 0;
+      const errorEffectiveness =
+        errorTotal > 0 ? ((errorPos - errorNeg) / errorTotal) * 100 : 0;
+
+      return {
+        totalActions,
+        errors: totalErrors,
+        effectiveness,
+        errorEffectiveness,
+        categories,
+      };
+    };
+
+    return {
+      A: aggregate(teamAPlayers),
+      B: aggregate(teamBPlayers),
+    };
+  }, [playerStats, teamAPlayers, teamBPlayers]);
+
+  const PlayerCard = ({
+    player,
+    teamColor,
+    teamBorder,
+    teamBg,
+  }: {
+    player: (typeof allPlayers)[0];
+    teamColor: string;
+    teamBorder: string;
+    teamBg: string;
+  }) => {
     const pId = `${player.team}-${player.number}`;
     const stats = playerStats[pId];
     if (!stats) return null;
     const [expanded, setExpanded] = useState(false);
 
-    const radarData = Object.entries(stats.categories).map(([cat, data]) => ({
-      label: cat.replace("ERRORES_", "E.").substring(0, 4),
-      value: Math.max(0, data.effectiveness),
-    }));
+    const radarData = [
+      ...Object.entries(stats.categories)
+        .filter(([cat]) => !cat.startsWith("ERRORES"))
+        .map(([cat, data]) => ({
+          label: cat.substring(0, 4),
+          value: Math.max(0, data.effectiveness),
+        })),
+      {
+        label: "Errores",
+        value: Math.max(0, stats.errorEffectiveness),
+      },
+    ];
 
     const color = player.team === "A" ? "#3b82f6" : "#ef4444";
 
     return (
       <View
-        style={tw`bg-white border border-slate-200 rounded-xl mb-3 overflow-hidden`}
+        style={tw`mb-2 rounded-xl border ${teamBorder} ${teamBg} overflow-hidden`}
       >
         <TouchableOpacity
           onPress={() => setExpanded(!expanded)}
-          style={tw`flex-row items-center justify-between p-4 bg-slate-50`}
+          style={tw`flex-row items-center justify-between p-2`}
         >
           <View style={tw`flex-1`}>
-            <Text style={tw`font-bold text-[#003366]`}>
+            <Text style={tw`font-bold text-[#003366] text-xs`}>
               #{player.number} {player.fullName}
             </Text>
-            <Text style={tw`text-xs text-slate-500`}>
-              {stats.totalActions} acciones · {stats.errors} errores · Efect.{" "}
+            <Text style={tw`text-[10px] text-slate-500`}>
+              {stats.totalActions} acc · {stats.errors} err · Efect.{" "}
               {stats.effectiveness.toFixed(0)}%
             </Text>
           </View>
           <Ionicons
             name={expanded ? "chevron-up" : "chevron-down"}
-            size={20}
-            color="#003366"
+            size={16}
+            color={color}
           />
         </TouchableOpacity>
-
         {expanded && (
-          <View style={tw`px-4 pb-4 flex-row`}>
-            <View style={tw`w-40 h-40 items-center justify-center`}>
-              <RadarChart data={radarData} size={160} color={color} />
-            </View>
-            <View style={tw`flex-1 ml-4`}>
-              {Object.entries(stats.categories).map(([cat, data]) => (
-                <View key={cat} style={tw`mb-2`}>
-                  <Text
-                    style={tw`text-xs font-bold ${categoryColors[cat] || "bg-gray-200 text-gray-800"} px-1 py-0.5 rounded`}
-                  >
-                    {cat} ({data.effectiveness.toFixed(0)}%)
-                  </Text>
-                  {Object.entries(data.subs).map(([sub, subData]) => (
-                    <View
-                      key={sub}
-                      style={tw`flex-row justify-between ml-2 py-0.5`}
-                    >
-                      <Text style={tw`text-xs text-slate-600`}>{sub}</Text>
-                      <Text style={tw`text-xs font-bold text-slate-700`}>
-                        {subData.total} ({subData.effectiveness.toFixed(0)}%)
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+          <View style={tw`px-3 pb-3`}>
+            <StatsPanel
+              radarData={radarData}
+              categories={stats.categories}
+              color={color}
+              radarSize={180}
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const TeamSection = ({
+    teamName,
+    players,
+    teamColor,
+    teamBorder,
+    teamBg,
+    stats,
+  }: {
+    teamName: string;
+    players: typeof teamAPlayers;
+    teamColor: string;
+    teamBorder: string;
+    teamBg: string;
+    stats: TeamStats;
+  }) => {
+    const [open, setOpen] = useState(true);
+    const color = teamBorder === "border-blue-500" ? "#3b82f6" : "#ef4444";
+
+    const radarData = [
+      ...Object.entries(stats.categories)
+        .filter(([cat]) => !cat.startsWith("ERRORES"))
+        .map(([cat, data]) => ({
+          label: cat.substring(0, 4),
+          value: Math.max(0, data.effectiveness),
+        })),
+      {
+        label: "Errores",
+        value: Math.max(0, stats.errorEffectiveness),
+      },
+    ];
+
+    return (
+      <View style={tw`mb-4`}>
+        <TouchableOpacity
+          onPress={() => setOpen(!open)}
+          style={tw`flex-row items-center justify-between p-3 rounded-xl border ${teamBorder} ${teamBg}`}
+        >
+          <View style={tw`flex-1`}>
+            <Text style={tw`font-bold text-[#003366] text-base`}>
+              {teamName}
+            </Text>
+            <Text style={tw`text-xs text-slate-600`}>
+              {stats.totalActions} acc · {stats.errors} err · Efect.{" "}
+              {stats.effectiveness.toFixed(0)}%
+            </Text>
+          </View>
+          <Ionicons
+            name={open ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={color}
+          />
+        </TouchableOpacity>
+        {open && (
+          <View style={tw`mt-2 px-3`}>
+            <StatsPanel
+              radarData={radarData}
+              categories={stats.categories}
+              color={color}
+              radarSize={200}
+            />
+            <View style={tw`mt-3`}>
+              {players.map((player, idx) => (
+                <PlayerCard
+                  key={idx}
+                  player={player}
+                  teamColor={teamColor}
+                  teamBorder={teamBorder}
+                  teamBg={teamBg}
+                />
               ))}
             </View>
           </View>
@@ -278,7 +490,6 @@ export default function MatchDetailScreen() {
     );
   };
 
-  // ===== RENDERIZADO PRINCIPAL =====
   return (
     <SafeAreaView style={tw`flex-1 bg-white`}>
       <HeaderMenu
@@ -288,14 +499,13 @@ export default function MatchDetailScreen() {
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={tw`p-5 pb-20`}>
-        {/* ---------- DATOS DE REGISTRO ---------- */}
+        {/* Datos de registro (igual que antes) */}
         <View
           style={tw`mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200`}
         >
           <Text style={tw`text-2xl font-black text-[#003366] mb-2`}>
             {match.config.tournament || "Partido"}
           </Text>
-
           <View style={tw`flex-row flex-wrap gap-2 mb-3`}>
             <View style={tw`bg-[#003366]/10 px-3 py-1 rounded-full`}>
               <Text style={tw`text-xs font-bold text-[#003366]`}>
@@ -324,8 +534,6 @@ export default function MatchDetailScreen() {
                 Partido #{match.config.matchNumber}
               </Text>
             </View>
-
-            {/* Campos adicionales según tipo de evento */}
             {match.config.place && (
               <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
                 <Text style={tw`text-xs font-bold text-slate-700`}>
@@ -356,8 +564,6 @@ export default function MatchDetailScreen() {
               </View>
             )}
           </View>
-
-          {/* Marcador final */}
           <View style={tw`flex-row justify-between items-center mt-4`}>
             <View style={tw`flex-1 items-center`}>
               <Text style={tw`text-lg font-bold text-[#003366]`}>
@@ -384,41 +590,28 @@ export default function MatchDetailScreen() {
             Último set: {match.score.currentSet} ({match.score.pointsA}-
             {match.score.pointsB})
           </Text>
-
-          {/* Lista completa de jugadores */}
-          <View style={tw`mt-4 flex-row gap-4`}>
-            <View style={tw`flex-1`}>
-              <Text style={tw`font-bold text-[#003366] text-sm mb-1`}>
-                {match.config.teamA.name}
-              </Text>
-              {match.config.teamA.players.map((p, i) => (
-                <Text key={i} style={tw`text-xs text-slate-600`}>
-                  #{p.number} {p.fullName}
-                </Text>
-              ))}
-            </View>
-            <View style={tw`flex-1`}>
-              <Text style={tw`font-bold text-[#003366] text-sm mb-1`}>
-                {match.config.teamB.name}
-              </Text>
-              {match.config.teamB.players.map((p, i) => (
-                <Text key={i} style={tw`text-xs text-slate-600`}>
-                  #{p.number} {p.fullName}
-                </Text>
-              ))}
-            </View>
-          </View>
         </View>
 
-        {/* ---------- ESTADÍSTICAS DETALLADAS ---------- */}
         <Text style={tw`text-xl font-black text-slate-400 uppercase mb-4`}>
-          Rendimiento Individual Detallado
+          Rendimiento por Equipos
         </Text>
-        {allPlayers.map((player, idx) => (
-          <PlayerCard key={idx} player={player} />
-        ))}
+        <TeamSection
+          teamName={match.config.teamA.name}
+          players={teamAPlayers}
+          teamColor="text-blue-400"
+          teamBorder="border-blue-500"
+          teamBg="bg-blue-900/20"
+          stats={teamAggregatedStats.A}
+        />
+        <TeamSection
+          teamName={match.config.teamB.name}
+          players={teamBPlayers}
+          teamColor="text-red-400"
+          teamBorder="border-red-500"
+          teamBg="bg-red-900/20"
+          stats={teamAggregatedStats.B}
+        />
 
-        {/* ---------- DESARROLLO RALLY POR RALLY ---------- */}
         <Text style={tw`text-xl font-black text-slate-400 uppercase mt-8 mb-4`}>
           Desarrollo del Partido
         </Text>
