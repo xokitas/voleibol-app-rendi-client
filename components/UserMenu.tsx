@@ -9,9 +9,10 @@ import { useAuthStore } from "../src/store/useAuthStore";
 
 interface UserMenuProps {
   dark?: boolean;
+  size?: number;
 }
 
-export default function UserMenu({ dark = false }: UserMenuProps) {
+export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();

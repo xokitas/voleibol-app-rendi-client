@@ -1,13 +1,23 @@
+// app/(tabs)/menu/index.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
 
 export default function MenuScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 1024;
+
   const [activeTab, setActiveTab] = useState<string | null>(null);
 
   const typeOptions = [
@@ -17,56 +27,72 @@ export default function MenuScreen() {
     { id: "externo", label: "Control externo", icon: "earth-outline" },
   ];
 
-  // Función para determinar la ruta según el Tab activo
   const handleNavigation = (optionId: string) => {
     if (activeTab === "reg") {
-      // REGISTRO: Cada tipo tiene su formulario, usamos ruta dinámica
       router.push(`/(tabs)/register/${optionId}` as any);
     } else {
-      // VISUALIZAR o CARGAR: La pantalla es la misma, pasamos el filtro por parámetro
       const route = activeTab === "vis" ? "/(tabs)/results" : "/(tabs)/load";
-
       router.push({
         pathname: route,
-        params: { filter: optionId }, // Enviamos el tipo para que la pantalla sepa qué buscar
+        params: { filter: optionId },
       } as any);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* HEADER POTENCIADO: Toma el control del título y el botón de atrás */}
+    <SafeAreaView style={tw`flex-1 bg-[#F8F8FF]`} edges={["top"]}>
+      {/* Header más compacto en móvil */}
       <HeaderMenu
-        title="Menú de Opciones"
-        onBack={() => router.replace("/")} // Función de tu flecha antigua
+        title={isMobile ? "Menú" : "Menú de Opciones"}
+        onBack={() => router.replace("/")}
         dark={false}
         showQuickNav={false}
+        compact={isMobile} // ← prop para achicar el header
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Título de Bienvenida al Menú */}
-        <View style={styles.header}>
-          <Text style={styles.title}>¿Qué deseas hacer hoy?</Text>
+      <ScrollView
+        contentContainerStyle={tw`${isMobile ? "px-2 py-1" : "p-6 pt-4"}`}
+      >
+        {/* Título reducido */}
+        <View style={tw`${isMobile ? "mb-2" : "mb-8"}`}>
+          <Text
+            style={tw`${
+              isMobile ? "text-xs" : "text-2xl"
+            } font-black text-slate-400 uppercase`}
+          >
+            ¿Qué deseas hacer hoy?
+          </Text>
         </View>
 
-        {/* Fila de 3 botones principales */}
-        <View style={styles.mainRow}>
+        {/* Fila de 3 botones principales (más pequeños) */}
+        <View
+          style={tw`flex-row justify-between ${
+            isMobile ? "gap-1 mb-2" : "gap-2 mb-8"
+          }`}
+        >
           <TouchableOpacity
             style={[
-              styles.mainBtn,
-              activeTab === "reg" && styles.mainBtnActive,
+              tw`bg-white border border-slate-200 ${
+                isMobile ? "p-1.5" : "p-4"
+              } rounded-2xl items-center flex-1 shadow-sm ${
+                isMobile ? "h-16" : "h-28"
+              } justify-center`,
+              activeTab === "reg" &&
+                tw`bg-[#003366] border-[#003366] shadow-md`,
             ]}
             onPress={() => setActiveTab(activeTab === "reg" ? null : "reg")}
           >
             <Ionicons
               name="add-circle"
-              size={24}
+              size={isMobile ? 18 : 24}
               color={activeTab === "reg" ? "#FFF" : "#003366"}
             />
             <Text
               style={[
-                styles.mainBtnText,
-                activeTab === "reg" && styles.textWhite,
+                tw`${
+                  isMobile ? "text-[8px]" : "text-[11px]"
+                } font-black text-[#003366] mt-1 uppercase text-center leading-3`,
+                activeTab === "reg" && tw`text-white`,
               ]}
             >
               Registrar Datos
@@ -75,20 +101,27 @@ export default function MenuScreen() {
 
           <TouchableOpacity
             style={[
-              styles.mainBtn,
-              activeTab === "vis" && styles.mainBtnActive,
+              tw`bg-white border border-slate-200 ${
+                isMobile ? "p-1.5" : "p-4"
+              } rounded-2xl items-center flex-1 shadow-sm ${
+                isMobile ? "h-16" : "h-28"
+              } justify-center`,
+              activeTab === "vis" &&
+                tw`bg-[#003366] border-[#003366] shadow-md`,
             ]}
             onPress={() => setActiveTab(activeTab === "vis" ? null : "vis")}
           >
             <Ionicons
               name="eye"
-              size={24}
+              size={isMobile ? 18 : 24}
               color={activeTab === "vis" ? "#FFF" : "#003366"}
             />
             <Text
               style={[
-                styles.mainBtnText,
-                activeTab === "vis" && styles.textWhite,
+                tw`${
+                  isMobile ? "text-[8px]" : "text-[11px]"
+                } font-black text-[#003366] mt-1 uppercase text-center leading-3`,
+                activeTab === "vis" && tw`text-white`,
               ]}
             >
               Visualizar Resultados
@@ -97,20 +130,27 @@ export default function MenuScreen() {
 
           <TouchableOpacity
             style={[
-              styles.mainBtn,
-              activeTab === "load" && styles.mainBtnActive,
+              tw`bg-white border border-slate-200 ${
+                isMobile ? "p-1.5" : "p-4"
+              } rounded-2xl items-center flex-1 shadow-sm ${
+                isMobile ? "h-16" : "h-28"
+              } justify-center`,
+              activeTab === "load" &&
+                tw`bg-[#003366] border-[#003366] shadow-md`,
             ]}
             onPress={() => setActiveTab(activeTab === "load" ? null : "load")}
           >
             <Ionicons
               name="cloud-upload"
-              size={24}
+              size={isMobile ? 18 : 24}
               color={activeTab === "load" ? "#FFF" : "#003366"}
             />
             <Text
               style={[
-                styles.mainBtnText,
-                activeTab === "load" && styles.textWhite,
+                tw`${
+                  isMobile ? "text-[8px]" : "text-[11px]"
+                } font-black text-[#003366] mt-1 uppercase text-center leading-3`,
+                activeTab === "load" && tw`text-white`,
               ]}
             >
               Cargar Partido
@@ -120,18 +160,42 @@ export default function MenuScreen() {
 
         {/* Desplegable dinámico */}
         {activeTab && (
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownTitle}>Seleccione modalidad:</Text>
+          <View
+            style={tw`bg-white rounded-3xl ${
+              isMobile ? "p-2" : "p-4"
+            } border border-slate-100 shadow-sm`}
+          >
+            <Text
+              style={tw`${isMobile ? "text-[7px]" : "text-[10px]"} font-bold text-slate-400 uppercase mb-2 ml-1`}
+            >
+              Seleccione modalidad:
+            </Text>
             {typeOptions.map((option) => (
               <TouchableOpacity
                 key={option.id}
-                style={styles.dropItem}
+                style={tw`flex-row items-center bg-slate-50 ${
+                  isMobile ? "p-1.5" : "p-4"
+                } rounded-xl mb-1.5 border border-slate-100`}
                 activeOpacity={0.6}
-                onPress={() => handleNavigation(option.id)} // <--- CORRECCIÓN AQUÍ
+                onPress={() => handleNavigation(option.id)}
               >
-                <Ionicons name={option.icon as any} size={20} color="#003366" />
-                <Text style={styles.dropText}>{option.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                <Ionicons
+                  name={option.icon as any}
+                  size={isMobile ? 14 : 20}
+                  color="#003366"
+                />
+                <Text
+                  style={tw`flex-1 ml-2 text-slate-700 ${
+                    isMobile ? "text-[10px]" : "text-sm"
+                  } font-semibold`}
+                >
+                  {option.label}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={isMobile ? 12 : 16}
+                  color="#CBD5E1"
+                />
               </TouchableOpacity>
             ))}
           </View>
@@ -140,19 +204,3 @@ export default function MenuScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = {
-  container: tw`flex-1 bg-[#F8F8FF]`,
-  scrollContent: tw`p-6 pt-4`,
-  header: tw`mb-8`,
-  title: tw`text-2xl font-black text-slate-400 uppercase`,
-  mainRow: tw`flex-row justify-between gap-2 mb-8`,
-  mainBtn: tw`bg-white border border-slate-200 p-4 rounded-2xl items-center flex-1 shadow-sm h-28 justify-center`,
-  mainBtnActive: tw`bg-[#003366] border-[#003366] shadow-md`,
-  mainBtnText: tw`text-[11px] font-black text-[#003366] mt-3 uppercase text-center leading-3`,
-  textWhite: tw`text-white`,
-  dropdownContainer: tw`bg-white rounded-3xl p-4 border border-slate-100 shadow-sm`,
-  dropdownTitle: tw`text-[10px] font-bold text-slate-400 uppercase mb-4 ml-2`,
-  dropItem: tw`flex-row items-center bg-slate-50 p-4 rounded-xl mb-2 border border-slate-100`,
-  dropText: tw`flex-1 ml-4 text-slate-700 font-semibold text-sm`,
-};
