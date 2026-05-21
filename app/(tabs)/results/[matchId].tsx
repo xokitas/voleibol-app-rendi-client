@@ -6,7 +6,7 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import StatsPanel, {
-  CategoryStats
+  CategoryStats,
 } from "../../../components/results/StatsPanel";
 import tw from "../../../lib/tailwind";
 import {
@@ -63,7 +63,6 @@ const getMaxValue = (subAction: string): number => {
   return Math.max(...allowed);
 };
 
-// Interfaz local para las estadísticas del equipo
 interface TeamStats {
   totalActions: number;
   errors: number;
@@ -310,7 +309,6 @@ export default function MatchDetailScreen() {
         });
       });
 
-      // Calcular efectividades
       Object.keys(categories).forEach((cat) => {
         const catData = categories[cat];
         catData.effectiveness =
@@ -339,10 +337,7 @@ export default function MatchDetailScreen() {
       };
     };
 
-    return {
-      A: aggregate(teamAPlayers),
-      B: aggregate(teamBPlayers),
-    };
+    return { A: aggregate(teamAPlayers), B: aggregate(teamBPlayers) };
   }, [playerStats, teamAPlayers, teamBPlayers]);
 
   const PlayerCard = ({
@@ -368,10 +363,7 @@ export default function MatchDetailScreen() {
           label: cat.substring(0, 4),
           value: Math.max(0, data.effectiveness),
         })),
-      {
-        label: "Errores",
-        value: Math.max(0, stats.errorEffectiveness),
-      },
+      { label: "Errores", value: Math.max(0, stats.errorEffectiveness) },
     ];
 
     const color = player.team === "A" ? "#3b82f6" : "#ef4444";
@@ -438,10 +430,7 @@ export default function MatchDetailScreen() {
           label: cat.substring(0, 4),
           value: Math.max(0, data.effectiveness),
         })),
-      {
-        label: "Errores",
-        value: Math.max(0, stats.errorEffectiveness),
-      },
+      { label: "Errores", value: Math.max(0, stats.errorEffectiveness) },
     ];
 
     return (
@@ -496,7 +485,7 @@ export default function MatchDetailScreen() {
         title="Detalle del Partido"
         dark={false}
         showQuickNav={true}
-        onBack={() => router.back()}
+        onBack={() => router.replace("/(tabs)/results")} // ← Ahora va a la lista de resultados
       />
       <ScrollView contentContainerStyle={tw`p-5 pb-20`}>
         {/* Datos de registro (igual que antes) */}
