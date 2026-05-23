@@ -80,21 +80,6 @@ const zoneLabels: Record<string, string> = {
   "B-DD": "DD",
 };
 
-const allZones = [
-  "A-TI",
-  "A-TC",
-  "A-TD",
-  "A-DI",
-  "A-DC",
-  "A-DD",
-  "B-TI",
-  "B-TC",
-  "B-TD",
-  "B-DI",
-  "B-DC",
-  "B-DD",
-];
-
 // ==========================================
 // COMPONENTE PRINCIPAL
 // ==========================================
@@ -104,6 +89,9 @@ export default function GameScreenMobile() {
   const saveCurrentMatch = useMatchStore((s) => s.saveCurrentMatch);
   const clearCurrentMatch = useMatchStore((s) => s.clearCurrentMatch);
   const eventData = currentMatch?.config;
+  const isTraining =
+    eventData?.eventType === "entrenamiento" ||
+    eventData?.eventType === "Entrenamiento";
 
   useEffect(() => {
     if (!currentMatch) router.replace("/(tabs)/menu");
@@ -128,13 +116,13 @@ export default function GameScreenMobile() {
     updatePendingZones,
     editRallyAction,
     rallyHistory,
+    isEditingAction,
   } = useScoutingLogic();
 
   const timers = useGameTimers();
   const { width } = useWindowDimensions();
-  const isMobile = true; // Esta pantalla siempre es móvil
 
-  // Estados locales
+  // Estados locales para la cascada de acciones
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeSubAction, setActiveSubAction] = useState<string | null>(null);
   const [showValueSelector, setShowValueSelector] = useState(false);
@@ -143,6 +131,14 @@ export default function GameScreenMobile() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
+
+  // Estados para sustituciones
+  const [activePlayersA, setActivePlayersA] = useState<number[]>([0, 1]);
+  const [activePlayersB, setActivePlayersB] = useState<number[]>([0, 1]);
+  const [showSubModal, setShowSubModal] = useState<{
+    team: "A" | "B";
+    index: number;
+  } | null>(null);
 
   const { getPlayerStats } = useStats(rallyHistory || [], actionAllowedValues);
 
@@ -212,13 +208,16 @@ export default function GameScreenMobile() {
     }
   }, [sets.A, sets.B]);
 
-  // Cronómetros
+  // Iniciar/reanudar cronómetros al seleccionar una sub‑acción (no al seleccionar jugador)
   useEffect(() => {
-    if (selectedPlayerId) {
+    if (pendingAction && !isEditingAction && !timers.isRealTimeActive) {
       timers.startRealTime();
-      timers.startTotalTime();
+      if (!timers.isTotalTimeActive) {
+        timers.startTotalTime();
+        setHasStarted(true);
+      }
     }
-  }, [selectedPlayerId]);
+  }, [pendingAction, isEditingAction]);
 
   // --- MANEJO DE LA CASCADA MÓVIL ---
   const handleCategoryPress = (category: string) => {
@@ -273,6 +272,7 @@ export default function GameScreenMobile() {
         teamOfAction === "A" ? "Equipo A" : "Equipo B",
         teamOfAction === "A" ? "Equipo B" : "Equipo A",
       );
+    timers.startTotalTime(); // mantener el cronómetro total corriendo
   };
 
   const handleExit = () =>
@@ -297,6 +297,34 @@ export default function GameScreenMobile() {
       "Salir sin guardar",
     );
 
+  // Manejo de QuickNav: mismo modal que handleExit pero redirige a la ruta elegida
+  const handleQuickNav = (route: string) => {
+    if (currentMatch) {
+      showModal(
+        "Salir del partido",
+        "Elige qué hacer con el partido actual:",
+        "warning",
+        () => {
+          saveCurrentMatch("partial");
+          timers.stopRealTime();
+          timers.stopTotalTime();
+          router.replace(route as any);
+        },
+        () => {
+          clearRally();
+          clearCurrentMatch();
+          timers.stopRealTime();
+          timers.stopTotalTime();
+          router.replace(route as any);
+        },
+        "Guardar y salir",
+        "Salir sin guardar",
+      );
+    } else {
+      router.replace(route as any);
+    }
+  };
+
   const handlePartialSave = () =>
     showModal(
       "Suspender Partido",
@@ -313,7 +341,7 @@ export default function GameScreenMobile() {
   const handleFinishMatch = () =>
     showModal(
       "Finalizar Partido",
-      "¿Finalizar el partido definitivamente?",
+      "¿Finalizar definitivamente?",
       "danger",
       () => {
         saveCurrentMatch("finished");
@@ -340,14 +368,25 @@ export default function GameScreenMobile() {
     return map[cat] || [];
   };
 
+  // Funciones auxiliares para índices de jugadores
+  const playersAOriginalIndex = (player: any) =>
+    eventData?.teamA?.players?.findIndex(
+      (p: any) => p.number === player.number,
+    ) ?? -1;
+  const playersBOriginalIndex = (player: any) =>
+    eventData?.teamB?.players?.findIndex(
+      (p: any) => p.number === player.number,
+    ) ?? -1;
+
   return (
     <SafeAreaView style={tw`flex-1 bg-slate-950`}>
       <HeaderMenu
         dark={true}
         title="PANEL DE JUEGO"
         onBack={handleExit}
-        showQuickNav={false}
+        showQuickNav={true}
         compact={true}
+        onNavigate={handleQuickNav}
       />
 
       <ScrollView contentContainerStyle={tw`p-2 pb-4`}>
@@ -361,23 +400,44 @@ export default function GameScreenMobile() {
               {eventData?.teamA?.name || "EQUIPO A"}
             </Text>
             <View style={tw`flex-row gap-1 mt-1`}>
-              {eventData?.teamA?.players?.map((p: any, i: number) => {
-                const pid = `A-${p.number}`;
-                const isSel = selectedPlayerId === pid;
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => handlePlayerSelect(pid)}
-                    style={tw`px-2 py-1 rounded-lg border ${isSel ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-slate-700"}`}
-                  >
-                    <Text
-                      style={tw`${isSel ? "text-white" : "text-blue-300"} font-bold text-[9px]`}
+              {eventData?.teamA?.players
+                ?.filter((_: any, i: number) => activePlayersA.includes(i))
+                .map((p: any, indexInActive: number) => {
+                  const originalIndex = activePlayersA[indexInActive];
+                  const pid = `A-${p.number}`;
+                  const isSel = selectedPlayerId === pid;
+                  return (
+                    <View
+                      key={`playerA-${originalIndex}`}
+                      style={tw`flex-row items-center`}
                     >
-                      #{p.number}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <TouchableOpacity
+                        onPress={() => handlePlayerSelect(pid)}
+                        style={tw`px-2 py-1 rounded-lg border ${isSel ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-slate-700"}`}
+                      >
+                        <Text
+                          style={tw`${isSel ? "text-white" : "text-blue-300"} font-bold text-[9px]`}
+                        >
+                          #{p.number}
+                        </Text>
+                      </TouchableOpacity>
+                      {isTraining && (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setShowSubModal({ team: "A", index: indexInActive })
+                          }
+                          style={tw`ml-1 p-1 rounded bg-slate-700`}
+                        >
+                          <Ionicons
+                            name="swap-horizontal"
+                            size={10}
+                            color="#94a3b8"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
             </View>
           </View>
 
@@ -399,23 +459,44 @@ export default function GameScreenMobile() {
               {eventData?.teamB?.name || "EQUIPO B"}
             </Text>
             <View style={tw`flex-row gap-1 mt-1`}>
-              {eventData?.teamB?.players?.map((p: any, i: number) => {
-                const pid = `B-${p.number}`;
-                const isSel = selectedPlayerId === pid;
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => handlePlayerSelect(pid)}
-                    style={tw`px-2 py-1 rounded-lg border ${isSel ? "bg-red-600 border-red-400" : "bg-slate-800 border-slate-700"}`}
-                  >
-                    <Text
-                      style={tw`${isSel ? "text-white" : "text-red-300"} font-bold text-[9px]`}
+              {eventData?.teamB?.players
+                ?.filter((_: any, i: number) => activePlayersB.includes(i))
+                .map((p: any, indexInActive: number) => {
+                  const originalIndex = activePlayersB[indexInActive];
+                  const pid = `B-${p.number}`;
+                  const isSel = selectedPlayerId === pid;
+                  return (
+                    <View
+                      key={`playerB-${originalIndex}`}
+                      style={tw`flex-row items-center`}
                     >
-                      #{p.number}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <TouchableOpacity
+                        onPress={() => handlePlayerSelect(pid)}
+                        style={tw`px-2 py-1 rounded-lg border ${isSel ? "bg-red-600 border-red-400" : "bg-slate-800 border-slate-700"}`}
+                      >
+                        <Text
+                          style={tw`${isSel ? "text-white" : "text-red-300"} font-bold text-[9px]`}
+                        >
+                          #{p.number}
+                        </Text>
+                      </TouchableOpacity>
+                      {isTraining && (
+                        <TouchableOpacity
+                          onPress={() =>
+                            setShowSubModal({ team: "B", index: indexInActive })
+                          }
+                          style={tw`ml-1 p-1 rounded bg-slate-700`}
+                        >
+                          <Ionicons
+                            name="swap-horizontal"
+                            size={10}
+                            color="#94a3b8"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
             </View>
           </View>
         </View>
@@ -619,19 +700,19 @@ export default function GameScreenMobile() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
-                if (!hasStarted) {
-                  setHasStarted(true);
+                if (!timers.isTotalTimeActive) {
                   timers.startTotalTime();
                   timers.startRealTime();
+                  setHasStarted(true);
                 } else
                   timers.isRealTimeActive
                     ? timers.stopRealTime()
                     : timers.startRealTime();
               }}
-              style={tw`px-3 py-1.5 rounded-lg ${!hasStarted ? "bg-green-600" : timers.isRealTimeActive ? "bg-orange-600" : "bg-green-600"}`}
+              style={tw`px-3 py-1.5 rounded-lg ${!timers.isTotalTimeActive ? "bg-green-600" : timers.isRealTimeActive ? "bg-orange-600" : "bg-green-600"}`}
             >
               <Text style={tw`text-white font-black text-[9px]`}>
-                {!hasStarted
+                {!timers.isTotalTimeActive
                   ? "COMENZAR"
                   : timers.isRealTimeActive
                     ? "PAUSAR"
@@ -769,6 +850,114 @@ export default function GameScreenMobile() {
             />
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* MODAL DE SUSTITUCIÓN */}
+      <Modal
+        visible={!!showSubModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSubModal(null)}
+      >
+        <View style={tw`flex-1 justify-end bg-black/60`}>
+          <View style={tw`bg-slate-900 rounded-t-3xl p-4`}>
+            <Text style={tw`text-white font-black text-lg mb-4`}>
+              Sustituir jugador
+            </Text>
+            {[
+              ...(eventData?.teamA?.players || []).map((p: any) => ({
+                ...p,
+                team: "A",
+              })),
+              ...(eventData?.teamB?.players || []).map((p: any) => ({
+                ...p,
+                team: "B",
+              })),
+            ].map((player, idx) => {
+              const team = player.team;
+              const playerNumber = player.number;
+              const isActive =
+                (team === "A" &&
+                  activePlayersA.includes(playersAOriginalIndex(player))) ||
+                (team === "B" &&
+                  activePlayersB.includes(playersBOriginalIndex(player)));
+              return (
+                <TouchableOpacity
+                  key={`sub-${team}-${playerNumber}`}
+                  onPress={() => {
+                    if (!showSubModal) return;
+                    const { team: targetTeam, index } = showSubModal;
+                    const selectedTeamPlayers =
+                      team === "A"
+                        ? eventData?.teamA?.players
+                        : eventData?.teamB?.players;
+                    if (!selectedTeamPlayers) return;
+                    const selectedIndex = selectedTeamPlayers.findIndex(
+                      (p: any) => p.number === playerNumber,
+                    );
+                    if (selectedIndex === -1) return;
+                    if (targetTeam === team) {
+                      if (targetTeam === "A") {
+                        setActivePlayersA((prev) =>
+                          prev.map((i) => (i === index ? selectedIndex : i)),
+                        );
+                      } else {
+                        setActivePlayersB((prev) =>
+                          prev.map((i) => (i === index ? selectedIndex : i)),
+                        );
+                      }
+                    } else {
+                      if (targetTeam === "A") {
+                        setActivePlayersA((prev) => {
+                          const newA = [...prev];
+                          const temp = newA[index]!;
+                          newA[index] = selectedIndex;
+                          setActivePlayersB((prevB) => {
+                            const newB = [...prevB];
+                            const idxInB = newB.indexOf(selectedIndex);
+                            if (idxInB !== -1) newB[idxInB] = temp;
+                            else if (index < newB.length) newB[index] = temp;
+                            return newB;
+                          });
+                          return newA;
+                        });
+                      } else {
+                        setActivePlayersB((prev) => {
+                          const newB = [...prev];
+                          const temp = newB[index]!;
+                          newB[index] = selectedIndex;
+                          setActivePlayersA((prevA) => {
+                            const newA = [...prevA];
+                            const idxInA = newA.indexOf(selectedIndex);
+                            if (idxInA !== -1) newA[idxInA] = temp;
+                            else if (index < newA.length) newA[index] = temp;
+                            return newA;
+                          });
+                          return newB;
+                        });
+                      }
+                    }
+                    setShowSubModal(null);
+                  }}
+                  style={tw`p-3 border-b border-slate-700 flex-row justify-between items-center`}
+                >
+                  <Text style={tw`text-white`}>
+                    #{player.number} {player.fullName} ({player.team})
+                  </Text>
+                  {isActive && (
+                    <Text style={tw`text-green-400 text-xs`}>En cancha</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              onPress={() => setShowSubModal(null)}
+              style={tw`mt-4 bg-red-600 p-3 rounded-lg`}
+            >
+              <Text style={tw`text-white text-center font-bold`}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* MODAL DE CONFIRMACIÓN GLOBAL */}

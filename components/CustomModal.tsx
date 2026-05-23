@@ -15,6 +15,7 @@ interface CustomModalProps {
   cancelText?: string;
   onSecondary?: () => void;
   secondaryText?: string;
+  children?: React.ReactNode; // <-- NUEVO
 }
 
 export default function CustomModal({
@@ -28,6 +29,7 @@ export default function CustomModal({
   cancelText = "Cancelar",
   onSecondary,
   secondaryText,
+  children,
 }: CustomModalProps) {
   if (!visible) return null;
 
@@ -42,9 +44,6 @@ export default function CustomModal({
   };
 
   const config = colorMap[type];
-
-  // Número de botones: cancelar siempre, confirmar siempre, secundario opcional
-  const buttonCount = 2 + (onSecondary ? 1 : 0);
 
   return (
     <Modal transparent animationType="fade" visible={visible}>
@@ -69,11 +68,13 @@ export default function CustomModal({
             {message}
           </Text>
 
-          {/* Botones siempre en una fila, sin wrap */}
-          <View style={tw`flex-row gap-2`}>
+          {/* Contenido extra (children) */}
+          {children && <View style={tw`mb-6`}>{children}</View>}
+
+          <View style={tw`flex-row justify-end gap-3 flex-wrap`}>
             <TouchableOpacity
               onPress={onCancel}
-              style={tw`flex-1 px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 items-center`}
+              style={tw`px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800`}
             >
               <Text style={tw`text-slate-300 font-bold text-xs uppercase`}>
                 {cancelText}
@@ -86,7 +87,7 @@ export default function CustomModal({
                   onSecondary();
                   onCancel();
                 }}
-                style={tw`flex-1 px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-700 items-center`}
+                style={tw`px-5 py-2.5 rounded-xl border border-slate-600 bg-slate-700`}
               >
                 <Text style={tw`text-white font-bold text-xs uppercase`}>
                   {secondaryText}
@@ -99,7 +100,7 @@ export default function CustomModal({
                 onConfirm();
                 onCancel();
               }}
-              style={tw`flex-1 px-3 py-2.5 rounded-xl ${config.bg} shadow-lg items-center`}
+              style={tw`px-5 py-2.5 rounded-xl ${config.bg} shadow-lg`}
             >
               <Text style={tw`text-white font-black text-xs uppercase`}>
                 {confirmText}

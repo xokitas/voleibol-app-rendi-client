@@ -29,30 +29,32 @@ export default function LoadMatchScreen() {
   const deleteMatch = useMatchStore((s) => s.deleteMatch);
   const currentMatch = useMatchStore((s) => s.currentMatch);
 
+  // Estado simplificado para el modal
   const [modal, setModal] = useState<{
     visible: boolean;
-    type: "resume" | "delete" | "platform" | null;
-    matchId: string;
     title: string;
     message: string;
     confirmText: string;
     typeModal: "warning" | "danger" | "info";
+    onConfirm: () => void;
   }>({
     visible: false,
-    type: null,
-    matchId: "",
     title: "",
     message: "",
     confirmText: "",
     typeModal: "warning",
+    onConfirm: () => {},
   });
 
+  // Mostramos todos los partidos parciales (sin filtrar por plataforma)
   const pendingMatches = savedMatches.filter((m) => {
     if (m.status !== "partial") return false;
-    if (filter && m.config.eventType !== filter) return false;
+    if (filter && m.config.eventType?.toLowerCase() !== filter.toLowerCase())
+      return false;
     return true;
   });
 
+  // Al pulsar Reanudar, verificamos la plataforma
   const handleResumePress = (matchId: string) => {
     const match = savedMatches.find((m) => m.id === matchId);
     if (!match) return;
@@ -61,8 +63,6 @@ export default function LoadMatchScreen() {
     if (matchPlatform !== currentPlatform) {
       setModal({
         visible: true,
-        type: "platform",
-        matchId,
         title: "Plataforma incompatible",
         message:
           currentPlatform === "web"
@@ -70,6 +70,7 @@ export default function LoadMatchScreen() {
             : "Este partido fue registrado en la web. Solo puede reanudarse en la versión de escritorio.",
         confirmText: "Entendido",
         typeModal: "warning",
+        onConfirm: () => setModal((prev) => ({ ...prev, visible: false })),
       });
       return;
     }
@@ -77,13 +78,15 @@ export default function LoadMatchScreen() {
     if (currentMatch) {
       setModal({
         visible: true,
-        type: "resume",
-        matchId,
         title: "Partido en curso",
         message:
           "Si cargas este partido, el partido actual se perderá. ¿Deseas continuar?",
         confirmText: "Cargar",
         typeModal: "danger",
+        onConfirm: () => {
+          loadMatch(matchId);
+          router.push("/(tabs)/game");
+        },
       });
     } else {
       loadMatch(matchId);
@@ -94,23 +97,15 @@ export default function LoadMatchScreen() {
   const handleDeletePress = (matchId: string) => {
     setModal({
       visible: true,
-      type: "delete",
-      matchId,
       title: "Eliminar partido",
       message: "¿Estás seguro de que quieres borrar este partido guardado?",
       confirmText: "Eliminar",
       typeModal: "danger",
+      onConfirm: () => {
+        deleteMatch(matchId);
+        setModal((prev) => ({ ...prev, visible: false }));
+      },
     });
-  };
-
-  const handleModalConfirm = () => {
-    if (modal.type === "resume") {
-      loadMatch(modal.matchId);
-      router.push("/(tabs)/game");
-    } else if (modal.type === "delete") {
-      deleteMatch(modal.matchId);
-    }
-    setModal({ ...modal, visible: false });
   };
 
   const getProgressText = (match: (typeof savedMatches)[0]) => {
@@ -149,7 +144,7 @@ export default function LoadMatchScreen() {
                   isMobile ? "p-3" : "p-4"
                 } rounded-2xl mb-3 border border-slate-100 shadow-sm flex-row items-center`}
               >
-                {/* Columna 1: Datos del partido – ocupa la mitad del espacio disponible */}
+                {/* Columna 1: Datos del partido */}
                 <View style={tw`flex-1`}>
                   <Text
                     style={tw`font-bold text-[#003366] ${isMobile ? "text-sm" : "text-base"}`}
@@ -170,7 +165,7 @@ export default function LoadMatchScreen() {
                   </Text>
                 </View>
 
-                {/* Columna 2: Indicador de plataforma – ancho fijo, centrado vertical y horizontalmente */}
+                {/* Columna 2: Indicador de plataforma */}
                 <View
                   style={tw`items-center justify-center ${
                     isMobile ? "w-16" : "w-20"
@@ -194,7 +189,7 @@ export default function LoadMatchScreen() {
                   />
                 </View>
 
-                {/* Columna 3: Contenedor flexible que empuja los botones a la derecha */}
+                {/* Columna 3: Botones */}
                 <View style={tw`flex-1 flex-row justify-end`}>
                   <View style={tw`flex-row gap-2`}>
                     <TouchableOpacity
@@ -242,15 +237,16 @@ export default function LoadMatchScreen() {
         />
       </View>
 
+      {/* Modal unificado */}
       <CustomModal
         visible={modal.visible}
         title={modal.title}
         message={modal.message}
         type={modal.typeModal}
-        onConfirm={handleModalConfirm}
+        onConfirm={modal.onConfirm}
         onCancel={() => setModal({ ...modal, visible: false })}
         confirmText={modal.confirmText}
-        cancelText={modal.type !== "platform" ? "Cancelar" : undefined}
+        cancelText="Cancelar"
       />
     </SafeAreaView>
   );

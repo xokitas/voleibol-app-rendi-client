@@ -1,9 +1,11 @@
 // app/(tabs)/register/[type].tsx
+import CustomModal from "@/components/CustomModal";
+import type { MatchRules } from "@/src/store/useMatchStore";
 import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -17,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
 
-// Traductor para el backend (sin cambios)
+// Traductor para el backend
 const MESO_MAP = {
   Entrante: "ENT",
   Básico: "BAS",
@@ -92,9 +94,7 @@ const SmartInput = ({
 
   return (
     <View
-      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${
-        isMobile ? "h-8" : "h-12"
-      } bg-slate-50 px-2`}
+      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
     >
       {isPC && (
         <Text
@@ -143,14 +143,12 @@ const SmartSelect = ({
             {label}:
           </Text>
         )}
-
         <Text
           style={tw`text-slate-700 ${isMini ? "text-[9px]" : isMobile ? "text-xs" : "text-sm"} flex-1 font-medium text-center`}
           numberOfLines={1}
         >
           {value}
         </Text>
-
         <Ionicons
           name={isOpen ? "chevron-up" : "chevron-down"}
           size={isMini ? 8 : isMobile ? 12 : 14}
@@ -158,7 +156,6 @@ const SmartSelect = ({
         />
       </TouchableOpacity>
 
-      {/* Menú desplegable */}
       {isOpen && (
         <View
           style={[
@@ -204,9 +201,7 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   if (Platform.OS === "web") {
     return (
       <View
-        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${
-          isMobile ? "h-8" : "h-12"
-        } bg-slate-50 px-2`}
+        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
       >
         {isPC && (
           <Text
@@ -255,9 +250,7 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
       <TouchableOpacity
         onPress={() => setShow(true)}
         activeOpacity={0.7}
-        style={tw`flex-row items-center border border-slate-300 rounded-lg ${
-          isMobile ? "h-8" : "h-12"
-        } bg-slate-50 px-2`}
+        style={tw`flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
       >
         {isPC && (
           <Text
@@ -277,7 +270,6 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
             : label}
         </Text>
       </TouchableOpacity>
-
       {show && (
         <DateTimePicker
           value={value instanceof Date ? value : new Date()}
@@ -299,6 +291,9 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   );
 };
 
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
 export default function RegisterDataScreen() {
   const { type } = useLocalSearchParams();
   const router = useRouter();
@@ -308,6 +303,8 @@ export default function RegisterDataScreen() {
   const setInitialMatchData = useMatchStore(
     (state) => state.setInitialMatchData,
   );
+  const currentMatch = useMatchStore((s) => s.currentMatch);
+  const clearCurrentMatch = useMatchStore((s) => s.clearCurrentMatch);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -324,9 +321,6 @@ export default function RegisterDataScreen() {
     week_day: "Lunes",
   });
 
-  const updateForm = (key: string, value: any) =>
-    setFormData((prev) => ({ ...prev, [key]: value }));
-
   const [teamA, setTeamA] = useState("Equipo A");
   const [teamB, setTeamB] = useState("Equipo B");
 
@@ -334,7 +328,6 @@ export default function RegisterDataScreen() {
     { number: "1", fullName: "", position: "B", zone: "CEN" },
     { number: "2", fullName: "", position: "D", zone: "CEN" },
   ];
-
   const [playersA, setPlayersA] = useState(
     initialPlayers.map((p) => ({ ...p })),
   );
@@ -342,8 +335,51 @@ export default function RegisterDataScreen() {
     initialPlayers.map((p) => ({ ...p })),
   );
 
+  // REGLAS Y MODAL
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [pendingMatchConfig, setPendingMatchConfig] = useState<any>(null);
+  const [rules, setRules] = useState<MatchRules>({
+    pointsToWinSet: 21,
+    pointsToWinLastSet: 15,
+    minDifference: 2,
+    maxSets: 3,
+    switchIntervalNormal: 7,
+    switchIntervalLast: 5,
+    hasTimeLimit: false,
+  });
+
+  // Modal de partido en curso
+  const [showExistingGameModal, setShowExistingGameModal] = useState(false);
+
+  // Limpiar formulario al entrar
+  useEffect(() => {
+    setFormData({
+      denomination: "",
+      place: "",
+      category: "Juvenil",
+      sex: "Masculino",
+      date: new Date(),
+      start_time: new Date(),
+      objective: "",
+      meso: "Entrante",
+      micro: "Ordinario",
+      micro_num: "1",
+      week_day: "Lunes",
+    });
+    setTeamA("Equipo A");
+    setTeamB("Equipo B");
+    setPlayersA(initialPlayers.map((p) => ({ ...p })));
+    setPlayersB(initialPlayers.map((p) => ({ ...p })));
+    if (currentMatch) {
+      setShowExistingGameModal(true);
+    }
+  }, [type]);
+
+  const updateForm = (key: string, value: any) =>
+    setFormData((prev) => ({ ...prev, [key]: value }));
+
   const handleStartEvent = () => {
-    const gender: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
+    const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
     const currentPlatform: "web" | "mobile" =
       Platform.OS === "web" ? "web" : "mobile";
     const matchConfig = {
@@ -351,7 +387,7 @@ export default function RegisterDataScreen() {
       category: formData.category,
       date: formData.date.toISOString(),
       matchNumber: parseInt(formData.micro_num) || 1,
-      gender,
+      branch,
       eventType:
         (type as string).charAt(0).toUpperCase() + (type as string).slice(1),
       startTime: formData.start_time.toTimeString().substring(0, 5),
@@ -375,11 +411,17 @@ export default function RegisterDataScreen() {
           .filter((p) => p.number !== ""),
       },
       platform: currentPlatform,
+      gender: branch,
     };
 
-    const matchId = setInitialMatchData(matchConfig);
-    console.log(`Partido creado: ${matchId}`);
-    router.push("/game");
+    if (type === "oficial") {
+      const matchId = setInitialMatchData(matchConfig);
+      console.log(`Partido creado: ${matchId}`);
+      router.push("/game");
+    } else {
+      setPendingMatchConfig(matchConfig);
+      setShowRulesModal(true);
+    }
   };
 
   const updatePlayer = (
@@ -390,12 +432,9 @@ export default function RegisterDataScreen() {
   ) => {
     const setter = team === "A" ? setPlayersA : setPlayersB;
     setter((prevPlayers) =>
-      prevPlayers.map((player, i) => {
-        if (i === index) {
-          return { ...player, [field]: value };
-        }
-        return player;
-      }),
+      prevPlayers.map((player, i) =>
+        i === index ? { ...player, [field]: value } : player,
+      ),
     );
   };
 
@@ -588,10 +627,8 @@ export default function RegisterDataScreen() {
                 : "Sesión de Entrenamiento"}
         </Text>
 
-        {/* 1. Campos dinámicos según tipo */}
         {renderSpecificFields()}
 
-        {/* 2. Categoría y Sexo (Comunes) */}
         <FormRow zIndex={30}>
           <SmartSelect
             label="Categoría"
@@ -611,7 +648,6 @@ export default function RegisterDataScreen() {
           />
         </FormRow>
 
-        {/* --- SECCIÓN DE PARTICIPANTES (EQUIPO A VS EQUIPO B) --- */}
         <View style={tw`flex-row items-center gap-2 my-3`}>
           <TextInput
             style={tw`flex-1 border-b-2 border-[#003366] p-1 ${isMobile ? "text-sm" : "text-lg"} font-bold`}
@@ -630,7 +666,7 @@ export default function RegisterDataScreen() {
           />
         </View>
 
-        {/* --- TABLA EQUIPO A --- */}
+        {/* Tabla Equipo A */}
         <View style={tw`flex-row justify-between items-center mb-1`}>
           <Text
             style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
@@ -655,8 +691,6 @@ export default function RegisterDataScreen() {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Header Tabla Equipo A */}
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
             style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
@@ -680,7 +714,6 @@ export default function RegisterDataScreen() {
           </Text>
           {type === "entrenamiento" && <Text style={tw`w-6`}></Text>}
         </View>
-
         {playersA.map((p, i) => (
           <View
             key={`A-${i}`}
@@ -701,8 +734,6 @@ export default function RegisterDataScreen() {
               value={p.fullName}
               onChangeText={(v) => updatePlayer("A", i, "fullName", v)}
             />
-
-            {/* Selector de Posición Equipo A */}
             <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
@@ -727,8 +758,6 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-
-            {/* Selector de Zona Equipo A */}
             <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
@@ -751,7 +780,6 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-
             {type === "entrenamiento" && (
               <TouchableOpacity
                 onPress={() => removePlayer("A", i)}
@@ -767,7 +795,7 @@ export default function RegisterDataScreen() {
           </View>
         ))}
 
-        {/* --- TABLA EQUIPO B --- */}
+        {/* Tabla Equipo B */}
         <View style={tw`flex-row justify-between items-center mt-6 mb-1`}>
           <Text
             style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
@@ -792,8 +820,6 @@ export default function RegisterDataScreen() {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Header Tabla Equipo B */}
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
             style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
@@ -817,7 +843,6 @@ export default function RegisterDataScreen() {
           </Text>
           {type === "entrenamiento" && <Text style={tw`w-6`}></Text>}
         </View>
-
         {playersB.map((p, i) => (
           <View
             key={`B-${i}`}
@@ -838,8 +863,6 @@ export default function RegisterDataScreen() {
               value={p.fullName}
               onChangeText={(v) => updatePlayer("B", i, "fullName", v)}
             />
-
-            {/* Selector de Posición Equipo B */}
             <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
@@ -864,8 +887,6 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-
-            {/* Selector de Zona Equipo B */}
             <View style={tw`w-16 px-0.5`}>
               <SmartSelect
                 label=""
@@ -888,7 +909,6 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-
             {type === "entrenamiento" && (
               <TouchableOpacity
                 onPress={() => removePlayer("B", i)}
@@ -904,7 +924,6 @@ export default function RegisterDataScreen() {
           </View>
         ))}
 
-        {/* --- BOTÓN DE ACCIÓN FINAL --- */}
         <View style={tw`mt-8 mb-8`}>
           <TouchableOpacity
             onPress={handleStartEvent}
@@ -922,7 +941,6 @@ export default function RegisterDataScreen() {
               Comenzar Registro de Evento
             </Text>
           </TouchableOpacity>
-
           <Text
             style={tw`text-slate-400 ${isMobile ? "text-[8px]" : "text-[10px]"} text-center mt-2 uppercase`}
           >
@@ -930,6 +948,231 @@ export default function RegisterDataScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Modal de Reglas */}
+      <CustomModal
+        visible={showRulesModal}
+        title="Configurar Reglas"
+        message="Ajusta los parámetros del partido:"
+        type="info"
+        onConfirm={() => {
+          const finalConfig = { ...pendingMatchConfig, rules };
+          setInitialMatchData(finalConfig);
+          setShowRulesModal(false);
+          router.push("/game");
+        }}
+        onCancel={() => setShowRulesModal(false)}
+        confirmText="Iniciar Partido"
+      >
+        <View style={tw`gap-3 mt-4`}>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>Puntos Set Normal</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    pointsToWinSet: Math.max(1, prev.pointsToWinSet - 1),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.pointsToWinSet}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    pointsToWinSet: prev.pointsToWinSet + 1,
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>Puntos Último Set</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    pointsToWinLastSet: Math.max(
+                      1,
+                      prev.pointsToWinLastSet - 1,
+                    ),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.pointsToWinLastSet}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    pointsToWinLastSet: prev.pointsToWinLastSet + 1,
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>Diferencia mínima</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    minDifference: Math.max(1, prev.minDifference - 1),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.minDifference}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    minDifference: prev.minDifference + 1,
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>
+              Sets a ganar (máx {rules.maxSets})
+            </Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    maxSets: Math.max(1, prev.maxSets - 1),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.maxSets}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({ ...prev, maxSets: prev.maxSets + 1 }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>Cambio lado (sets 1‑2)</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    switchIntervalNormal: Math.max(
+                      1,
+                      prev.switchIntervalNormal - 1,
+                    ),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.switchIntervalNormal}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    switchIntervalNormal: prev.switchIntervalNormal + 1,
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-white text-xs`}>Cambio lado (último set)</Text>
+            <View style={tw`flex-row items-center gap-2`}>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    switchIntervalLast: Math.max(
+                      1,
+                      prev.switchIntervalLast - 1,
+                    ),
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>-</Text>
+              </TouchableOpacity>
+              <Text style={tw`text-white font-bold w-8 text-center`}>
+                {rules.switchIntervalLast}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setRules((prev) => ({
+                    ...prev,
+                    switchIntervalLast: prev.switchIntervalLast + 1,
+                  }))
+                }
+                style={tw`bg-slate-700 w-8 h-8 rounded-full items-center justify-center`}
+              >
+                <Text style={tw`text-white`}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </CustomModal>
+
+      {/* Modal de partido en curso */}
+      <CustomModal
+        visible={showExistingGameModal}
+        title="Partido en curso"
+        message="Hay un partido en curso. Si inicias un nuevo registro, el partido actual se perderá."
+        type="danger"
+        onConfirm={() => {
+          clearCurrentMatch();
+          setShowExistingGameModal(false);
+        }}
+        onCancel={() => {
+          setShowExistingGameModal(false);
+          router.replace("/(tabs)/menu");
+        }}
+        confirmText="Continuar"
+        cancelText="Cancelar"
+      />
     </SafeAreaView>
   );
 }
