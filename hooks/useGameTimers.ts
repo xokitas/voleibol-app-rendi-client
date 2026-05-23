@@ -1,23 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
+// hooks/useGameTimers.ts
+import { useEffect, useRef, useState } from "react";
 
-export const useGameTimers = () => {
-  const [totalTime, setTotalTime] = useState(0);
-  const [realTime, setRealTime] = useState(0);
-  const [isRealTimeActive, setIsRealTimeActive] = useState(false);
+export const useGameTimers = (
+  initialTotal: number = 0,
+  initialReal: number = 0,
+) => {
+  const [totalTime, setTotalTime] = useState(initialTotal);
+  const [realTime, setRealTime] = useState(initialReal);
   const [isTotalTimeActive, setIsTotalTimeActive] = useState(false);
-  const [hasStartedOnce, setHasStartedOnce] = useState(false); // Nuevo: rastreo de inicio único
-
-  const totalIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isRealTimeActive, setIsRealTimeActive] = useState(false);
+  const [hasStartedOnce, setHasStartedOnce] = useState(initialTotal > 0);
+  const totalStartTimeRef = useRef<number>(Date.now() - initialTotal * 1000);
   const realIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // El tiempo total solo se activa si no se había iniciado antes
   const startTotalTime = () => {
-    if (!hasStartedOnce) {
+    if (!isTotalTimeActive) {
+      totalStartTimeRef.current = Date.now() - totalTime * 1000;
       setIsTotalTimeActive(true);
-      setHasStartedOnce(true);
     }
   };
-
   const stopTotalTime = () => setIsTotalTimeActive(false);
 
   const startRealTime = () => setIsRealTimeActive(true);
@@ -31,33 +32,35 @@ export const useGameTimers = () => {
     setHasStartedOnce(false);
   };
 
+  // Total time basado en timestamps reales
   useEffect(() => {
-    if (isTotalTimeActive) {
-      totalIntervalRef.current = setInterval(() => {
-        setTotalTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (totalIntervalRef.current) clearInterval(totalIntervalRef.current);
-    }
-    return () => { if (totalIntervalRef.current) clearInterval(totalIntervalRef.current); };
+    if (!isTotalTimeActive) return;
+    const interval = setInterval(() => {
+      setTotalTime(Math.floor((Date.now() - totalStartTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
   }, [isTotalTimeActive]);
 
+  // Real time con intervalos normales
   useEffect(() => {
     if (isRealTimeActive) {
-      realIntervalRef.current = setInterval(() => {
-        setRealTime((prev) => prev + 1);
-      }, 1000);
+      realIntervalRef.current = setInterval(
+        () => setRealTime((prev) => prev + 1),
+        1000,
+      );
     } else {
       if (realIntervalRef.current) clearInterval(realIntervalRef.current);
     }
-    return () => { if (realIntervalRef.current) clearInterval(realIntervalRef.current); };
+    return () => {
+      if (realIntervalRef.current) clearInterval(realIntervalRef.current);
+    };
   }, [isRealTimeActive]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return [hrs, mins, secs].map((v) => (v < 10 ? '0' + v : v)).join(':');
+    return [hrs, mins, secs].map((v) => (v < 10 ? "0" + v : v)).join(":");
   };
 
   return {

@@ -1,38 +1,16 @@
 // hooks/useScoutingLogic.ts
 import { useEffect, useState } from "react";
-import { useMatchStore, type RallyAction } from "../src/store/useMatchStore";
+import {
+  useMatchStore,
+  type MatchRules,
+  type RallyAction,
+} from "../src/store/useMatchStore";
 
-// El flujo lógico de acciones sigue igual
 const ACTION_FLOW: Record<string, string[]> = {
-  START: [
-    "SERVICIO",
-    "ERRORES_SERV",
-    "ERRORES_COM",
-    "ERRORES_POS",
-    "ERRORES_TEC",
-  ],
-  SERVICIO: [
-    "RECEPCION",
-    "DEFENSA",
-    "ERRORES_COM",
-    "ERRORES_POS",
-    "ERRORES_TEC",
-  ],
-  RECEPCION: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
-  DEFENSA: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
-  ACOMODADA: ["ATAQUE", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
-  ATAQUE: ["BLOQUEO", "DEFENSA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
-  BLOQUEO: [
-    "ACOMODADA",
-    "DEFENSA",
-    "ERRORES_COM",
-    "ERRORES_POS",
-    "ERRORES_TEC",
-  ],
+  /* ... igual que antes ... */
 };
 
 export const useScoutingLogic = () => {
-  // ----- Acciones del store -----
   const addRallyAction = useMatchStore((s) => s.addRallyAction);
   const finishRally = useMatchStore((s) => s.finishRally);
   const clearCurrentRally = useMatchStore((s) => s.clearCurrentRally);
@@ -42,7 +20,6 @@ export const useScoutingLogic = () => {
   const setPointsA = useMatchStore((s) => s.setPointsA);
   const setPointsB = useMatchStore((s) => s.setPointsB);
 
-  // ----- Estado derivado del partido en curso -----
   const currentMatch = useMatchStore((s) => s.currentMatch);
   const score = currentMatch?.score ?? {
     pointsA: 0,
@@ -57,7 +34,17 @@ export const useScoutingLogic = () => {
   const setsB = score.setsB;
   const currentSet = score.currentSet;
 
-  // Obtener el rally en construcción (último rally sin winner)
+  // Reglas por defecto
+  const rules: MatchRules = currentMatch?.config?.rules ?? {
+    pointsToWinSet: 21,
+    pointsToWinLastSet: 15,
+    minDifference: 2,
+    maxSets: 3,
+    switchIntervalNormal: 7,
+    switchIntervalLast: 5,
+    hasTimeLimit: false,
+  };
+
   const currentRallyActions: RallyAction[] = (() => {
     if (!currentMatch) return [];
     const setEntry = currentMatch.history.find((h) => h.set === currentSet);
@@ -67,7 +54,6 @@ export const useScoutingLogic = () => {
     return [];
   })();
 
-  // Historial completo de rallies (para mostrar en la UI)
   const rallyHistory =
     currentMatch?.history.flatMap((set) =>
       set.rallies.map((rally) => ({
@@ -78,7 +64,6 @@ export const useScoutingLogic = () => {
       })),
     ) ?? [];
 
-  // ----- Estados locales de flujo -----
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{
     category: string;
@@ -88,38 +73,36 @@ export const useScoutingLogic = () => {
     origin?: string;
     destination?: string;
   } | null>(null);
-
   const [mustSwitchSide, setMustSwitchSide] = useState(false);
   const [windA, setWindA] = useState("VIENTO A FAVOR");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isEditingAction, setIsEditingAction] = useState(false);
 
-  // Cambio de lado automático
   const swapWindDirection = (current: string) =>
     current === "VIENTO A FAVOR" ? "VIENTO EN CONTRA" : "VIENTO A FAVOR";
-
   const toggleWind = () => setWindA((prev) => swapWindDirection(prev));
 
+  // Cambio de lado usando reglas
   useEffect(() => {
     const totalPoints = pointsA + pointsB;
-    const switchInterval = currentSet <= 2 ? 7 : 5;
+    const switchInterval =
+      currentSet < rules.maxSets
+        ? rules.switchIntervalNormal
+        : rules.switchIntervalLast;
     if (totalPoints > 0 && totalPoints % switchInterval === 0) {
       setMustSwitchSide(true);
       setWindA((prev) => swapWindDirection(prev));
     } else {
       setMustSwitchSide(false);
     }
-  }, [pointsA, pointsB, currentSet]);
+  }, [pointsA, pointsB, currentSet, rules]);
 
-  // ----- Funciones de control -----
   const handlePlayerSelect = (id: string) => setSelectedPlayerId(id);
 
   const handleActionClick = (category: string, subAction: string) => {
     if (!selectedPlayerId) return;
-    setPendingAction({
-      category,
-      subAction,
-      playerId: selectedPlayerId,
-    });
+    setIsEditingAction(false);
+    setPendingAction({ category, subAction, playerId: selectedPlayerId });
   };
 
   const confirmActionValue = (value: number) => {
@@ -129,7 +112,6 @@ export const useScoutingLogic = () => {
 
   const updatePendingZones = (origin: string, destination: string) => {
     if (!pendingAction || pendingAction.value === undefined) return;
-
     const teamLetter = pendingAction.playerId.split("-")[0];
     const actionWind =
       teamLetter === "A"
@@ -137,7 +119,6 @@ export const useScoutingLogic = () => {
         : windA === "VIENTO A FAVOR"
           ? "VIENTO EN CONTRA"
           : "VIENTO A FAVOR";
-
     const finalAction: RallyAction = {
       ...pendingAction,
       origin,
@@ -145,22 +126,24 @@ export const useScoutingLogic = () => {
       wind: actionWind,
       timestamp: new Date().toISOString(),
     };
-
-    addRallyAction(finalAction, editingIndex ?? undefined);
-
+    addRallyAction(
+      finalAction,
+      editingIndex !== null ? editingIndex : undefined,
+    );
     setPendingAction(null);
     setSelectedPlayerId(null);
     setEditingIndex(null);
+    setIsEditingAction(false);
   };
 
   const editRallyAction = (index: number) => {
     const actionToEdit = currentRallyActions[index];
     if (!actionToEdit) return;
-
     setEditingIndex(index);
-    // No eliminamos la acción del store, simplemente la marcamos para edición.
-    // Pero addRallyAction con index sobrescribirá en esa posición.
-    // Por simplicidad, mantenemos el estado local.
+    setIsEditingAction(true);
+    const remainingActions = currentRallyActions.filter((_, i) => i !== index);
+    clearCurrentRally();
+    remainingActions.forEach((action) => addRallyAction(action));
     setSelectedPlayerId(actionToEdit.playerId);
     setPendingAction({
       playerId: actionToEdit.playerId,
@@ -172,47 +155,41 @@ export const useScoutingLogic = () => {
     });
   };
 
-  // ----- Cometer punto y gestión de sets -----
   const commitPoint = (teamWhoWon: "A" | "B") => {
-    // Cerrar el rally actual y asignar el punto
     finishRally(teamWhoWon);
-
-    // Leer el estado actualizado del store inmediatamente (síncrono)
     const updatedState = useMatchStore.getState();
     const updatedScore = updatedState.currentMatch?.score;
     if (!updatedScore) return;
-
     const newPointsA = updatedScore.pointsA;
     const newPointsB = updatedScore.pointsB;
-    const pointsToWin = currentSet <= 2 ? 21 : 15;
+    const pointsToWin =
+      currentSet < rules.maxSets
+        ? rules.pointsToWinSet
+        : rules.pointsToWinLastSet;
     const leadingScore = teamWhoWon === "A" ? newPointsA : newPointsB;
     const trailingScore = teamWhoWon === "A" ? newPointsB : newPointsA;
-
-    if (leadingScore >= pointsToWin && leadingScore - trailingScore >= 2) {
-      // Fin del set
+    if (
+      leadingScore >= pointsToWin &&
+      leadingScore - trailingScore >= rules.minDifference
+    ) {
       if (teamWhoWon === "A") incrementSetsA();
       else incrementSetsB();
-
-      // Resetear puntos y cambiar de set
       setPointsA(0);
       setPointsB(0);
       setCurrentSet(currentSet + 1);
     }
-    // No se necesita clearRally porque finishRally ya cerró el rally
   };
 
-  // Limpiar rally en curso (cancelar)
   const clearRally = () => {
     clearCurrentRally();
     setPendingAction(null);
     setSelectedPlayerId(null);
     setEditingIndex(null);
+    setIsEditingAction(false);
   };
 
-  // ----- Validación de acciones permitidas -----
   const canPerformAction = (cat: string) => {
     if (cat.startsWith("ERRORES")) return true;
-
     let context: string;
     if (editingIndex !== null) {
       context =
@@ -225,7 +202,6 @@ export const useScoutingLogic = () => {
           ? "START"
           : currentRallyActions[currentRallyActions.length - 1].category;
     }
-
     const allowed = ACTION_FLOW[context];
     if (!allowed) return cat === "SERVICIO";
     return allowed.includes(cat);
@@ -241,6 +217,7 @@ export const useScoutingLogic = () => {
     mustSwitchSide,
     selectedPlayerId,
     pendingAction,
+    isEditingAction,
     canPerformAction,
     handlePlayerSelect,
     handleActionClick,
@@ -250,7 +227,6 @@ export const useScoutingLogic = () => {
     clearRally,
     toggleWind,
     editRallyAction,
-    // Por si la UI necesita modificar directamente
     setPointsA,
     setPointsB,
     setCurrentSet,

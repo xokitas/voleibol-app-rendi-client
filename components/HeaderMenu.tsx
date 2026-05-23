@@ -9,7 +9,6 @@ interface HeaderMenuProps {
   title?: string;
   onBack?: () => void;
   showQuickNav?: boolean;
-  onNavigate?: (route: string) => void;
   dark?: boolean;
   compact?: boolean;
 }
@@ -18,7 +17,6 @@ export default function HeaderMenu({
   title,
   onBack,
   showQuickNav = false,
-  onNavigate,
   dark = false,
   compact = false,
 }: HeaderMenuProps) {
@@ -66,7 +64,7 @@ export default function HeaderMenu({
 
       {/* DERECHA: QuickNav + UserMenu */}
       <View style={tw`flex-row items-center justify-end gap-x-4`}>
-        {showQuickNav && <QuickNav onNavigate={onNavigate} dark={dark} />}
+        {showQuickNav && <QuickNav dark={dark} />}
         <UserMenu dark={dark} size={compact ? 18 : 24} />
       </View>
     </View>

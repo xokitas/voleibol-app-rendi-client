@@ -27,6 +27,18 @@ export interface RallyEntry {
   actions: RallyAction[];
 }
 
+// Reglas del juego
+export interface MatchRules {
+  pointsToWinSet: number; // default 21
+  pointsToWinLastSet: number; // default 15
+  minDifference: number; // default 2
+  maxSets: number; // default 3
+  switchIntervalNormal: number; // default 7
+  switchIntervalLast: number; // default 5
+  hasTimeLimit: boolean;
+  timeLimitMinutes?: number;
+}
+
 /** Configuración que viene de la pantalla de Registro */
 export interface MatchConfig {
   tournament: string;
@@ -49,6 +61,7 @@ export interface MatchConfig {
   teamA: { name: string; players: { number: string; fullName: string }[] };
   teamB: { name: string; players: { number: string; fullName: string }[] };
   platform?: "web" | "mobile";
+  rules?: MatchRules;
 }
 
 /** El objeto Match completo */
@@ -67,6 +80,8 @@ export interface Match {
     set: number;
     rallies: RallyEntry[];
   }[];
+  totalTimeSeconds?: number;
+  realTimeSeconds?: number;
 }
 
 // ----------------------------------------------------------------

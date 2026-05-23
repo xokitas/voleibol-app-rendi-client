@@ -25,7 +25,8 @@ export default function ResultsScreen() {
   const finishedMatches = useMemo(() => {
     return savedMatches.filter((m) => {
       if (m.status !== "finished") return false;
-      if (filter && m.config.eventType !== filter) return false;
+      if (filter && m.config.eventType?.toLowerCase() !== filter.toLowerCase())
+        return false;
       return true;
     });
   }, [savedMatches, filter]);

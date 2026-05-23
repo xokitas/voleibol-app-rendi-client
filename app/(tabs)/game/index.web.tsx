@@ -3,7 +3,7 @@ import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import HeaderMenu from "../../../components/HeaderMenu";
 import ReferencePanel from "../../../components/ReferencePanel";
 import { useGameTimers } from "../../../hooks/useGameTimers";
@@ -146,6 +146,9 @@ export default function GameScreenWeb() {
   const saveCurrentMatch = useMatchStore((s) => s.saveCurrentMatch);
   const clearCurrentMatch = useMatchStore((s) => s.clearCurrentMatch);
   const eventData = currentMatch?.config;
+  const isTraining =
+    eventData?.eventType === "entrenamiento" ||
+    eventData?.eventType === "Entrenamiento";
 
   // Redirigir si no hay partido cargado
   useEffect(() => {
@@ -171,9 +174,12 @@ export default function GameScreenWeb() {
     updatePendingZones,
     editRallyAction,
     rallyHistory,
+    isEditingAction,
   } = useScoutingLogic();
 
-  const timers = useGameTimers();
+  const initialTotal = currentMatch?.totalTimeSeconds ?? 0;
+  const initialReal = currentMatch?.realTimeSeconds ?? 0;
+  const timers = useGameTimers(initialTotal, initialReal);
 
   // ================== ESTADO DEL MODAL ==================
   const [modal, setModal] = useState({
@@ -207,7 +213,6 @@ export default function GameScreenWeb() {
       secondaryText,
     });
   };
-
   const hideModal = () => setModal((prev) => ({ ...prev, visible: false }));
 
   // Estados locales
@@ -222,6 +227,19 @@ export default function GameScreenWeb() {
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
+  // Estados para sustituciones
+  const [activePlayersA, setActivePlayersA] = useState<number[]>([0, 1]);
+  const [activePlayersB, setActivePlayersB] = useState<number[]>([0, 1]);
+  const [showSubModal, setShowSubModal] = useState<{
+    team: "A" | "B";
+    index: number;
+  } | null>(null);
+
+  // Estado para la ruta pendiente de QuickNav
+  const [pendingQuickNavRoute, setPendingQuickNavRoute] = useState<
+    string | null
+  >(null);
+
   const handleMouseMove = useCallback((e: any) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -233,6 +251,12 @@ export default function GameScreenWeb() {
   useEffect(() => {
     if (!pendingAction) setIsEditingMode(false);
   }, [pendingAction]);
+
+  useEffect(() => {
+    if (currentMatch && !timers.isTotalTimeActive) {
+      timers.startTotalTime();
+    }
+  }, []);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -262,12 +286,11 @@ export default function GameScreenWeb() {
   // Fin de partido (modal informativo + guardado automático)
   useEffect(() => {
     if (sets.A === 2 || sets.B === 2) {
-      const ganador = sets.A === 2 ? "EQUIPO A" : "EQUIPO B";
       timers.stopRealTime();
       timers.stopTotalTime();
       showModal(
         "¡PARTIDO FINALIZADO!",
-        `Ganador: ${ganador}`,
+        `Ganador: ${sets.A === 2 ? "EQUIPO A" : "EQUIPO B"}`,
         "info",
         () => {
           saveCurrentMatch("finished");
@@ -284,16 +307,40 @@ export default function GameScreenWeb() {
     if (score.A > 0 || score.B > 0) timers.stopRealTime();
   }, [score.A, score.B]);
 
+  // Iniciar/reanudar cronómetros automáticamente al comenzar una nueva acción
   useEffect(() => {
-    if (selectedPlayerId) {
+    if (pendingAction && !isEditingAction && !timers.isRealTimeActive) {
       timers.startRealTime();
-      timers.startTotalTime();
+      if (!timers.isTotalTimeActive) {
+        timers.startTotalTime();
+        setHasStarted(true);
+      }
     }
-  }, [selectedPlayerId]);
+  }, [pendingAction, isEditingAction]);
 
-  // Teclado numérico (sin cambios)
+  // Teclado numérico mejorado con selección rápida de jugadores (1‑4)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Solo si NO hay una acción pendiente, las teclas 1‑4 seleccionan jugador
+      if (!pendingAction && ["1", "2", "3", "4"].includes(e.key)) {
+        const index = parseInt(e.key) - 1;
+        const playersA = eventData?.teamA?.players || [];
+        const playersB = eventData?.teamB?.players || [];
+        let targetPlayerId: string | null = null;
+        if (index === 0 && playersA.length > 0)
+          targetPlayerId = `A-${playersA[0].number}`;
+        else if (index === 1 && playersA.length > 1)
+          targetPlayerId = `A-${playersA[1].number}`;
+        else if (index === 2 && playersB.length > 0)
+          targetPlayerId = `B-${playersB[0].number}`;
+        else if (index === 3 && playersB.length > 1)
+          targetPlayerId = `B-${playersB[1].number}`;
+        if (targetPlayerId) handlePlayerSelect(targetPlayerId);
+        else playErrorBuzzer();
+        return;
+      }
+
+      // Asignación de valor (0‑4) cuando hay acción pendiente y valor sin definir
       if (pendingAction && pendingAction.value === undefined) {
         let val: number | null = null;
         if (e.key === "`" || e.key === "0" || e.key === "º") val = 0;
@@ -311,7 +358,7 @@ export default function GameScreenWeb() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingAction, confirmActionValue]);
+  }, [pendingAction, confirmActionValue, handlePlayerSelect, eventData]);
 
   const formatTicketZone = (z?: string) => {
     if (!z) return "z?";
@@ -354,93 +401,90 @@ export default function GameScreenWeb() {
     }
   };
 
-  // AutoCommit con modal de dos opciones para punto dudoso
   const handleAutoCommit = () => {
     if (currentRally.length === 0) return;
     const lastAction = currentRally[currentRally.length - 1];
     const teamOfAction = lastAction.playerId.startsWith("A") ? "A" : "B";
     const opponentTeam = teamOfAction === "A" ? "B" : "A";
-
-    if (lastAction.value === 4) {
-      commitPoint(teamOfAction);
-    } else if (lastAction.value === 0) {
-      commitPoint(opponentTeam);
-    } else {
+    if (lastAction.value === 4) commitPoint(teamOfAction);
+    else if (lastAction.value === 0) commitPoint(opponentTeam);
+    else {
       const nameA = eventData?.teamA?.name || "Equipo A";
       const nameB = eventData?.teamB?.name || "Equipo B";
       showModal(
         "Punto del Rally",
-        `¿Qué equipo ganó el punto?`,
+        "¿Qué equipo ganó el punto?",
         "warning",
-        () => commitPoint(teamOfAction), // Punto para el que atacó
-        () => commitPoint(opponentTeam), // Punto para el rival
+        () => commitPoint(teamOfAction),
+        () => commitPoint(opponentTeam),
         teamOfAction === "A" ? nameA : nameB,
         teamOfAction === "A" ? nameB : nameA,
       );
     }
+    timers.startTotalTime(); // asegurar que el cronómetro total nunca se detenga
   };
 
-  // Flecha atrás: salir sin guardar (solo se pierde el rally actual, el partido sigue en memoria)
-  const handleExit = () => {
+  const handleExit = () =>
     showModal(
       "Salir del partido",
       "Elige qué hacer con el partido actual:",
       "warning",
-      // onConfirm: Guardar y salir
+      // onConfirm: Guardar y salir → mantiene el partido en curso (no guarda, no borra)
       () => {
-        saveCurrentMatch("partial");
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
+        timers.stopRealTime();
+        router.replace("/(tabs)/menu");
+      },
+      // onSecondary: Salir sin guardar → descarta el partido completamente
+      () => {
+        clearRally();
+        clearCurrentMatch();
         timers.stopRealTime();
         timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
-      // onSecondary: Salir sin guardar
-      () => {
-        clearRally(); // limpia el rally en curso
-        clearCurrentMatch(); // descarta el partido completamente
-        timers.stopRealTime();
-        timers.stopTotalTime();
-        router.replace("/(tabs)/menu");
-      },
-      "Guardar y salir", // confirmText
-      "Salir sin guardar", // secondaryText
+      "Guardar y salir",
+      "Salir sin guardar",
     );
-  };
 
-  // Botón Final Parcial
-  const handlePartialSave = () => {
+  const handlePartialSave = () =>
     showModal(
       "Suspender Partido",
-      "¿Guardar el parcial actual para continuar después?",
+      "¿Guardar el parcial actual?",
       "warning",
       () => {
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
         saveCurrentMatch("partial");
         timers.stopRealTime();
         timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
-      undefined,
-      "Guardar",
     );
-  };
 
-  // Botón Finalizar
-  const handleFinishMatch = () => {
+  const handleFinishMatch = () =>
     showModal(
       "Finalizar Partido",
-      "¿Finalizar el partido definitivamente? Esta acción no se puede deshacer.",
+      "¿Finalizar definitivamente?",
       "danger",
       () => {
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
         saveCurrentMatch("finished");
         timers.stopRealTime();
         timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
-      undefined,
-      "Finalizar",
     );
-  };
 
-  // Renderizado de columnas (ahora sin bloqueo, solo con resaltado)
+  // Renderizado de columnas (sin bloqueo, solo resaltado)
   const renderActionColumn = (
     title: string,
     category: string,
@@ -449,11 +493,9 @@ export default function GameScreenWeb() {
   ) => {
     const bgColor = categoryColors[category] || "bg-slate-800";
     const isSuggested = canPerformAction(category);
-
     const columnStyle = isDouble
       ? tw`flex-1 min-w-[35px] ${isStatsOpen ? "min-w-[150px]" : "max-w-[155px]"}`
       : tw`flex-1 min-w-[35px] max-w-[75px]`;
-
     return (
       <View style={columnStyle}>
         <Text
@@ -476,7 +518,6 @@ export default function GameScreenWeb() {
                 onPress={() => handleActionClick(category, sub)}
                 style={[
                   tw`py-2 rounded-lg border-b-2 items-center justify-center shadow-sm`,
-                  // Sub‑acción actualmente seleccionada (pendiente)
                   pendingAction?.subAction === sub
                     ? [
                         tw`border-white scale-105`,
@@ -485,10 +526,9 @@ export default function GameScreenWeb() {
                     : [
                         tw`border-black/10`,
                         tw`${bgColor}`,
-                        // Categoría sugerida → borde blanco
                         isSuggested
                           ? tw`border-white border-2`
-                          : tw`opacity-70`, // No sugerida → opacidad reducida
+                          : tw`opacity-70`,
                       ],
                 ]}
               >
@@ -513,18 +553,32 @@ export default function GameScreenWeb() {
   const eventTypeLabel = () => {
     if (!eventData) return "";
     switch (eventData.eventType) {
+      case "Oficial":
       case "oficial":
         return `🏆 ${eventData.denomination || "Competencia Oficial"}`;
+      case "Interno":
       case "interno":
         return `🔵 Control Interno – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
+      case "Externo":
       case "externo":
         return `🟢 Control Externo – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
+      case "Entrenamiento":
       case "entrenamiento":
         return `⚪ Entrenamiento – ${eventData.meso} / ${eventData.micro} #${eventData.microNumber}`;
       default:
         return eventData.tournament || "";
     }
   };
+
+  // Funciones auxiliares para índices de jugadores
+  const playersAOriginalIndex = (player: any) =>
+    eventData?.teamA?.players?.findIndex(
+      (p: any) => p.number === player.number,
+    ) ?? -1;
+  const playersBOriginalIndex = (player: any) =>
+    eventData?.teamB?.players?.findIndex(
+      (p: any) => p.number === player.number,
+    ) ?? -1;
 
   // ============ UI ============
   return (
@@ -591,27 +645,49 @@ export default function GameScreenWeb() {
                   </View>
                 </View>
                 <View style={tw`flex-col gap-5`}>
-                  {eventData?.teamA?.players?.map(
-                    (player: any, index: number) => {
+                  {eventData?.teamA?.players
+                    ?.filter((_: any, i: number) => activePlayersA.includes(i))
+                    .map((player: any, indexInActive: number) => {
+                      const originalIndex = activePlayersA[indexInActive];
                       const playerId = player.number
                         ? `A-${player.number}`
-                        : `A-${index}`;
+                        : `A-${originalIndex}`;
                       const isSelected = selectedPlayerId === playerId;
                       return (
-                        <TouchableOpacity
-                          key={`playerA-${index}`}
-                          onPress={() => handlePlayerSelect(playerId)}
-                          style={tw`px-3 py-2.5 rounded-lg border-l-4 ${isSelected ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-blue-900 shadow-md"}`}
+                        <View
+                          key={`playerA-${originalIndex}`}
+                          style={tw`flex-row items-center`}
                         >
-                          <Text
-                            style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-blue-200"}`}
+                          <TouchableOpacity
+                            onPress={() => handlePlayerSelect(playerId)}
+                            style={tw`px-3 py-2.5 rounded-lg border-l-4 ${isSelected ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-blue-900 shadow-md"}`}
                           >
-                            #{player.number} {player.fullName || "Jugador"}
-                          </Text>
-                        </TouchableOpacity>
+                            <Text
+                              style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-blue-200"}`}
+                            >
+                              #{player.number} {player.fullName || "Jugador"}
+                            </Text>
+                          </TouchableOpacity>
+                          {isTraining && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                setShowSubModal({
+                                  team: "A",
+                                  index: indexInActive,
+                                })
+                              }
+                              style={tw`ml-2 p-1 rounded bg-slate-700`}
+                            >
+                              <Ionicons
+                                name="swap-horizontal"
+                                size={14}
+                                color="#94a3b8"
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       );
-                    },
-                  )}
+                    })}
                 </View>
               </View>
 
@@ -648,27 +724,49 @@ export default function GameScreenWeb() {
               {/* Equipo B */}
               <View style={tw`flex-1 flex-row items-center justify-end gap-8`}>
                 <View style={tw`flex-col gap-5`}>
-                  {eventData?.teamB?.players?.map(
-                    (player: any, index: number) => {
+                  {eventData?.teamB?.players
+                    ?.filter((_: any, i: number) => activePlayersB.includes(i))
+                    .map((player: any, indexInActive: number) => {
+                      const originalIndex = activePlayersB[indexInActive];
                       const playerId = player.number
                         ? `B-${player.number}`
-                        : `B-${index}`;
+                        : `B-${originalIndex}`;
                       const isSelected = selectedPlayerId === playerId;
                       return (
-                        <TouchableOpacity
-                          key={`playerB-${index}`}
-                          onPress={() => handlePlayerSelect(playerId)}
-                          style={tw`px-3 py-2.5 rounded-lg border-r-4 ${isSelected ? "bg-red-600 border-red-400" : "bg-slate-800 border-red-900 shadow-md"}`}
+                        <View
+                          key={`playerB-${originalIndex}`}
+                          style={tw`flex-row items-center`}
                         >
-                          <Text
-                            style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-red-200"}`}
+                          <TouchableOpacity
+                            onPress={() => handlePlayerSelect(playerId)}
+                            style={tw`px-3 py-2.5 rounded-lg border-r-4 ${isSelected ? "bg-red-600 border-red-400" : "bg-slate-800 border-red-900 shadow-md"}`}
                           >
-                            #{player.number} {player.fullName || "Jugador"}
-                          </Text>
-                        </TouchableOpacity>
+                            <Text
+                              style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-red-200"}`}
+                            >
+                              #{player.number} {player.fullName || "Jugador"}
+                            </Text>
+                          </TouchableOpacity>
+                          {isTraining && (
+                            <TouchableOpacity
+                              onPress={() =>
+                                setShowSubModal({
+                                  team: "B",
+                                  index: indexInActive,
+                                })
+                              }
+                              style={tw`ml-2 p-1 rounded bg-slate-700`}
+                            >
+                              <Ionicons
+                                name="swap-horizontal"
+                                size={14}
+                                color="#94a3b8"
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       );
-                    },
-                  )}
+                    })}
                 </View>
                 <View style={tw`items-center`}>
                   <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>
@@ -706,7 +804,7 @@ export default function GameScreenWeb() {
             <View
               style={tw`flex-1 flex-row items-center px-4 gap-4 overflow-hidden`}
             >
-              {/* Cancha */}
+              {/* CANCHA COMPLETA */}
               <View
                 style={tw`w-64 h-80 bg-slate-950/50 rounded-2xl p-1 border border-slate-800 relative`}
                 // @ts-ignore
@@ -883,6 +981,7 @@ export default function GameScreenWeb() {
                   </Text>
                 ) : null}
               </View>
+              {/* FIN CANCHA */}
 
               {/* Columnas de acción */}
               <View style={tw`flex-1 flex-col h-full justify-center py-2`}>
@@ -905,7 +1004,6 @@ export default function GameScreenWeb() {
                       />
                     </TouchableOpacity>
                   )}
-                  {/* Tira de acciones */}
                   <View
                     style={tw`flex-row flex-wrap gap-2 items-center flex-1`}
                   >
@@ -917,7 +1015,6 @@ export default function GameScreenWeb() {
                       </Text>
                     ) : (
                       <>
-                        {/* Acciones ya confirmadas */}
                         {currentRally.map((accion, idx) => (
                           <TouchableOpacity
                             key={idx}
@@ -961,8 +1058,6 @@ export default function GameScreenWeb() {
                             </Text>
                           </TouchableOpacity>
                         ))}
-
-                        {/* Pastilla de la acción en construcción (feedback en vivo) */}
                         {pendingAction && (
                           <View
                             style={tw`bg-slate-900/80 border border-dashed border-cyan-600 px-2 py-1 rounded-lg flex-row items-center gap-2`}
@@ -1236,21 +1331,20 @@ export default function GameScreenWeb() {
               <View style={tw`flex-1 flex-row justify-end gap-3`}>
                 <TouchableOpacity
                   onPress={() => {
-                    if (!hasStarted) {
-                      setHasStarted(true);
+                    if (!timers.isTotalTimeActive) {
                       timers.startTotalTime();
                       timers.startRealTime();
-                    } else {
+                      setHasStarted(true);
+                    } else
                       timers.isRealTimeActive
                         ? timers.stopRealTime()
                         : timers.startRealTime();
-                    }
                   }}
-                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${!hasStarted ? "bg-green-600 border-green-800" : timers.isRealTimeActive ? "bg-orange-600 border-orange-800" : "bg-green-600 border-green-800"}`}
+                  style={tw`flex-row items-center gap-2 px-5 py-2 rounded-xl border-b-4 ${!timers.isTotalTimeActive ? "bg-green-600 border-green-800" : timers.isRealTimeActive ? "bg-orange-600 border-orange-800" : "bg-green-600 border-green-800"}`}
                 >
                   <Ionicons
                     name={
-                      !hasStarted
+                      !timers.isTotalTimeActive
                         ? "play-skip-forward"
                         : timers.isRealTimeActive
                           ? "pause"
@@ -1260,7 +1354,7 @@ export default function GameScreenWeb() {
                     color="white"
                   />
                   <Text style={tw`text-white font-black text-[11px] uppercase`}>
-                    {!hasStarted
+                    {!timers.isTotalTimeActive
                       ? "Comenzar"
                       : timers.isRealTimeActive
                         ? "Pausar Juego"
@@ -1290,6 +1384,126 @@ export default function GameScreenWeb() {
           </View>
         </View>
       </View>
+
+      {/* Modal de sustitución */}
+      <Modal
+        visible={!!showSubModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSubModal(null)}
+      >
+        <View style={tw`flex-1 justify-end bg-black/60`}>
+          <View style={tw`bg-slate-900 rounded-t-3xl p-4`}>
+            <Text style={tw`text-white font-black text-lg mb-4`}>
+              Sustituir jugador
+            </Text>
+            {/* Mostrar todos los jugadores registrados */}
+            {[
+              ...(eventData?.teamA?.players || []).map((p: any) => ({
+                ...p,
+                team: "A",
+              })),
+              ...(eventData?.teamB?.players || []).map((p: any) => ({
+                ...p,
+                team: "B",
+              })),
+            ].map((player, idx) => {
+              const team = player.team;
+              const playerNumber = player.number;
+              const playerId = `${team}-${playerNumber}`;
+              const isActive =
+                (team === "A" &&
+                  activePlayersA.includes(playersAOriginalIndex(player))) ||
+                (team === "B" &&
+                  activePlayersB.includes(playersBOriginalIndex(player)));
+              return (
+                <TouchableOpacity
+                  key={`sub-${team}-${playerNumber}`}
+                  onPress={() => {
+                    if (!showSubModal) return;
+                    const { team: targetTeam, index } = showSubModal;
+                    const selectedTeamPlayers =
+                      team === "A"
+                        ? eventData?.teamA?.players
+                        : eventData?.teamB?.players;
+                    if (!selectedTeamPlayers) return;
+                    const selectedIndex = selectedTeamPlayers.findIndex(
+                      (p: any) => p.number === playerNumber,
+                    );
+                    if (selectedIndex === -1) return;
+
+                    if (targetTeam === team) {
+                      // Sustitución dentro del mismo equipo
+                      if (targetTeam === "A") {
+                        setActivePlayersA((prev) =>
+                          prev.map((i) => (i === index ? selectedIndex : i)),
+                        );
+                      } else {
+                        setActivePlayersB((prev) =>
+                          prev.map((i) => (i === index ? selectedIndex : i)),
+                        );
+                      }
+                    } else {
+                      // Intercambio entre equipos
+                      if (targetTeam === "A") {
+                        setActivePlayersA((prev) => {
+                          const newA = [...prev];
+                          const temp = newA[index]!;
+                          newA[index] = selectedIndex;
+                          setActivePlayersB((prevB) => {
+                            const newB = [...prevB];
+                            const idxInB = newB.indexOf(selectedIndex);
+                            if (idxInB !== -1) {
+                              newB[idxInB] = temp;
+                            } else {
+                              if (index < newB.length) newB[index] = temp;
+                            }
+                            return newB;
+                          });
+                          return newA;
+                        });
+                      } else {
+                        // targetTeam === "B"
+                        setActivePlayersB((prev) => {
+                          const newB = [...prev];
+                          const temp = newB[index]!;
+                          newB[index] = selectedIndex;
+                          setActivePlayersA((prevA) => {
+                            const newA = [...prevA];
+                            const idxInA = newA.indexOf(selectedIndex);
+                            if (idxInA !== -1) {
+                              newA[idxInA] = temp;
+                            } else {
+                              if (index < newA.length) newA[index] = temp;
+                            }
+                            return newA;
+                          });
+                          return newB;
+                        });
+                      }
+                    }
+                    setShowSubModal(null);
+                  }}
+                  style={tw`p-3 border-b border-slate-700 flex-row justify-between items-center`}
+                >
+                  <Text style={tw`text-white`}>
+                    #{player.number} {player.fullName} ({player.team})
+                  </Text>
+                  {isActive && (
+                    <Text style={tw`text-green-400 text-xs`}>En cancha</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              onPress={() => setShowSubModal(null)}
+              style={tw`mt-4 bg-red-600 p-3 rounded-lg`}
+            >
+              <Text style={tw`text-white text-center font-bold`}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal global de confirmación */}
       <CustomModal
