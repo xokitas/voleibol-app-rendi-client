@@ -93,6 +93,7 @@ export default function GameScreenMobile() {
     eventData?.eventType === "entrenamiento" ||
     eventData?.eventType === "Entrenamiento";
 
+  // Redirigir si no hay partido cargado
   useEffect(() => {
     if (!currentMatch) router.replace("/(tabs)/menu");
   }, [currentMatch]);
@@ -119,7 +120,11 @@ export default function GameScreenMobile() {
     isEditingAction,
   } = useScoutingLogic();
 
-  const timers = useGameTimers();
+  // Tiempos iniciales desde el partido (si existen)
+  const initialTotal = currentMatch?.totalTimeSeconds ?? 0;
+  const initialReal = currentMatch?.realTimeSeconds ?? 0;
+  const timers = useGameTimers(initialTotal, initialReal);
+
   const { width } = useWindowDimensions();
 
   // Estados locales para la cascada de acciones
@@ -176,6 +181,13 @@ export default function GameScreenMobile() {
   };
   const hideModal = () => setModal((prev) => ({ ...prev, visible: false }));
 
+  // Arrancar el cronómetro total automáticamente si hay partido en curso
+  useEffect(() => {
+    if (currentMatch && !timers.isTotalTimeActive) {
+      timers.startTotalTime();
+    }
+  }, []);
+
   // Efectos de set/partido
   useEffect(() => {
     if (currentSet > 1) {
@@ -194,6 +206,10 @@ export default function GameScreenMobile() {
 
   useEffect(() => {
     if (sets.A === 2 || sets.B === 2) {
+      if (currentMatch) {
+        currentMatch.totalTimeSeconds = timers.totalTime;
+        currentMatch.realTimeSeconds = timers.realTime;
+      }
       timers.stopRealTime();
       timers.stopTotalTime();
       showModal(
@@ -272,7 +288,7 @@ export default function GameScreenMobile() {
         teamOfAction === "A" ? "Equipo A" : "Equipo B",
         teamOfAction === "A" ? "Equipo B" : "Equipo A",
       );
-    timers.startTotalTime(); // mantener el cronómetro total corriendo
+    timers.startTotalTime();
   };
 
   const handleExit = () =>
@@ -280,12 +296,16 @@ export default function GameScreenMobile() {
       "Salir del partido",
       "Elige qué hacer con el partido actual:",
       "warning",
+      // Guardar y salir: solo detener tiempo de juego, mantener partido en curso
       () => {
-        saveCurrentMatch("partial");
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
         timers.stopRealTime();
-        timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
+      // Salir sin guardar: descartar el partido
       () => {
         clearRally();
         clearCurrentMatch();
@@ -297,7 +317,41 @@ export default function GameScreenMobile() {
       "Salir sin guardar",
     );
 
-  // Manejo de QuickNav: mismo modal que handleExit pero redirige a la ruta elegida
+  const handlePartialSave = () =>
+    showModal(
+      "Suspender Partido",
+      "¿Guardar el parcial actual?",
+      "warning",
+      () => {
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
+        saveCurrentMatch("partial");
+        timers.stopRealTime();
+        timers.stopTotalTime();
+        router.replace("/(tabs)/menu");
+      },
+    );
+
+  const handleFinishMatch = () =>
+    showModal(
+      "Finalizar Partido",
+      "¿Finalizar definitivamente?",
+      "danger",
+      () => {
+        if (currentMatch) {
+          currentMatch.totalTimeSeconds = timers.totalTime;
+          currentMatch.realTimeSeconds = timers.realTime;
+        }
+        saveCurrentMatch("finished");
+        timers.stopRealTime();
+        timers.stopTotalTime();
+        router.replace("/(tabs)/menu");
+      },
+    );
+
+  // Manejo de QuickNav (móvil)
   const handleQuickNav = (route: string) => {
     if (currentMatch) {
       showModal(
@@ -305,9 +359,11 @@ export default function GameScreenMobile() {
         "Elige qué hacer con el partido actual:",
         "warning",
         () => {
-          saveCurrentMatch("partial");
+          if (currentMatch) {
+            currentMatch.totalTimeSeconds = timers.totalTime;
+            currentMatch.realTimeSeconds = timers.realTime;
+          }
           timers.stopRealTime();
-          timers.stopTotalTime();
           router.replace(route as any);
         },
         () => {
@@ -324,32 +380,6 @@ export default function GameScreenMobile() {
       router.replace(route as any);
     }
   };
-
-  const handlePartialSave = () =>
-    showModal(
-      "Suspender Partido",
-      "¿Guardar el parcial actual?",
-      "warning",
-      () => {
-        saveCurrentMatch("partial");
-        timers.stopRealTime();
-        timers.stopTotalTime();
-        router.replace("/(tabs)/menu");
-      },
-    );
-
-  const handleFinishMatch = () =>
-    showModal(
-      "Finalizar Partido",
-      "¿Finalizar definitivamente?",
-      "danger",
-      () => {
-        saveCurrentMatch("finished");
-        timers.stopRealTime();
-        timers.stopTotalTime();
-        router.replace("/(tabs)/menu");
-      },
-    );
 
   // --- SUB-ACCIONES SEGÚN CATEGORÍA ACTIVA ---
   const subActionsForCategory = (cat: string): string[] => {
@@ -386,7 +416,6 @@ export default function GameScreenMobile() {
         onBack={handleExit}
         showQuickNav={true}
         compact={true}
-        onNavigate={handleQuickNav}
       />
 
       <ScrollView contentContainerStyle={tw`p-2 pb-4`}>
