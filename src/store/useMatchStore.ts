@@ -33,7 +33,7 @@ export interface MatchConfig {
   category: string;
   date: string;
   matchNumber: number;
-  branch: "M" | "F";
+  gender: "M" | "F";
   eventType: string;
   startTime?: string; // solo oficial
   place?: string; // oficial, interno, externo
@@ -107,9 +107,9 @@ export interface MatchStore {
 
 const generateMatchId = (config: MatchConfig): string => {
   const dateStr = config.date.replace(/-/g, "");
-  const branch = config.branch;
+  const gender = config.gender;
   const matchNum = config.matchNumber;
-  return `${dateStr}-${branch}${matchNum}-${config.tournament}`.replace(
+  return `${dateStr}-${gender}${matchNum}-${config.tournament}`.replace(
     /\s/g,
     "-",
   );

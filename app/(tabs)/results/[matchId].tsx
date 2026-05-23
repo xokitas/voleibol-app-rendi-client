@@ -8,6 +8,7 @@ import HeaderMenu from "../../../components/HeaderMenu";
 import StatsPanel, {
   CategoryStats,
 } from "../../../components/results/StatsPanel";
+import { useExportMatchPDF } from "../../../hooks/PDF/useExportMatchPDF";
 import tw from "../../../lib/tailwind";
 import {
   useMatchStore,
@@ -340,6 +341,17 @@ export default function MatchDetailScreen() {
     return { A: aggregate(teamAPlayers), B: aggregate(teamBPlayers) };
   }, [playerStats, teamAPlayers, teamBPlayers]);
 
+  // Hook de exportación a PDF
+  const { handleExportPDF } = useExportMatchPDF({
+    match,
+    teamAPlayers,
+    teamBPlayers,
+    playerStats,
+    teamAggregatedStats,
+    formatDate,
+    getWinner,
+  });
+
   const PlayerCard = ({
     player,
     teamColor,
@@ -485,10 +497,10 @@ export default function MatchDetailScreen() {
         title="Detalle del Partido"
         dark={false}
         showQuickNav={true}
-        onBack={() => router.replace("/(tabs)/results")} // ← Ahora va a la lista de resultados
+        onBack={() => router.replace("/(tabs)/results")}
       />
       <ScrollView contentContainerStyle={tw`p-5 pb-20`}>
-        {/* Datos de registro (igual que antes) */}
+        {/* Datos de registro */}
         <View
           style={tw`mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200`}
         >
@@ -515,7 +527,7 @@ export default function MatchDetailScreen() {
             </View>
             <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
               <Text style={tw`text-xs font-bold text-slate-700`}>
-                {match.config.branch === "M" ? "Masculino" : "Femenino"}
+                {match.config.gender === "M" ? "Masculino" : "Femenino"}
               </Text>
             </View>
             <View style={tw`bg-slate-200 px-3 py-1 rounded-full`}>
@@ -646,6 +658,15 @@ export default function MatchDetailScreen() {
             )}
           </View>
         ))}
+
+        {/* Botón Exportar PDF */}
+        <TouchableOpacity
+          onPress={handleExportPDF}
+          style={tw`flex-row items-center justify-center bg-red-600 py-3 px-5 rounded-xl mt-6 self-end`}
+        >
+          <Ionicons name="document-outline" size={18} color="white" />
+          <Text style={tw`text-white font-bold ml-2`}>Exportar a PDF</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
