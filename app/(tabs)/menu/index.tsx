@@ -203,7 +203,7 @@ export default function MenuScreen() {
                   isMobile ? "p-1.5" : "p-4"
                 } rounded-xl mb-1.5 border border-slate-100`}
                 activeOpacity={0.6}
-                onPress={() => router.push("/(tabs)/results/aggregated" as any)}
+                onPress={() => router.push("/(tabs)/results/statistics" as any)}
               >
                 <Ionicons
                   name="stats-chart-outline"

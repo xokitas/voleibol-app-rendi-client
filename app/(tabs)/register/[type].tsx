@@ -343,7 +343,7 @@ export default function RegisterDataScreen() {
   );
 
   const handleStartEvent = () => {
-    const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
+    const gender: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
     const currentPlatform: "web" | "mobile" =
       Platform.OS === "web" ? "web" : "mobile";
     const matchConfig = {
@@ -351,8 +351,9 @@ export default function RegisterDataScreen() {
       category: formData.category,
       date: formData.date.toISOString(),
       matchNumber: parseInt(formData.micro_num) || 1,
-      branch,
-      eventType: type as string,
+      gender,
+      eventType:
+        (type as string).charAt(0).toUpperCase() + (type as string).slice(1),
       startTime: formData.start_time.toTimeString().substring(0, 5),
       place: formData.place || undefined,
       denomination: formData.denomination || undefined,
