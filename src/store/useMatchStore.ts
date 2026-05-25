@@ -1,12 +1,12 @@
-// useMatchStore.ts
+// src/store/useMatchStore.ts
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useAuthStore } from "./useAuthStore";
 
 // ----------------------------------------------------------------
 // 1. Tipos
 // ----------------------------------------------------------------
 
-/** Acción individual dentro de un rally */
 export interface RallyAction {
   category: string;
   subAction: string;
@@ -20,26 +20,23 @@ export interface RallyAction {
   to?: string;
 }
 
-/** Rally completo ya finalizado o en construcción */
 export interface RallyEntry {
-  winner?: "A" | "B"; // definido solo cuando el rally termina
-  scoreAtTheTime: { A: number; B: number }; // foto del marcador al iniciar el rally
+  winner?: "A" | "B";
+  scoreAtTheTime: { A: number; B: number };
   actions: RallyAction[];
 }
 
-// Reglas del juego
 export interface MatchRules {
-  pointsToWinSet: number; // default 21
-  pointsToWinLastSet: number; // default 15
-  minDifference: number; // default 2
-  maxSets: number; // default 3
-  switchIntervalNormal: number; // default 7
-  switchIntervalLast: number; // default 5
+  pointsToWinSet: number;
+  pointsToWinLastSet: number;
+  minDifference: number;
+  maxSets: number;
+  switchIntervalNormal: number;
+  switchIntervalLast: number;
   hasTimeLimit: boolean;
   timeLimitMinutes?: number;
 }
 
-/** Configuración que viene de la pantalla de Registro */
 export interface MatchConfig {
   tournament: string;
   category: string;
@@ -47,26 +44,24 @@ export interface MatchConfig {
   matchNumber: number;
   gender: "M" | "F";
   eventType: string;
-  startTime?: string; // solo oficial
-  place?: string; // oficial, interno, externo
-  denomination?: string; // oficial
-  // Interno / Externo / Entrenamiento
+  startTime?: string;
+  place?: string;
+  denomination?: string;
   meso?: string;
   micro?: string;
   weekDay?: string;
   microNumber?: string;
-  // Solo entrenamiento
   objective?: string;
-  // Equipos
   teamA: { name: string; players: { number: string; fullName: string }[] };
   teamB: { name: string; players: { number: string; fullName: string }[] };
   platform?: "web" | "mobile";
   rules?: MatchRules;
+  createdBy?: string;
 }
 
-/** El objeto Match completo */
 export interface Match {
   id: string;
+  serverId?: number;
   status: "in_progress" | "partial" | "finished";
   config: MatchConfig;
   score: {
@@ -88,15 +83,12 @@ export interface Match {
 // 2. Interfaz del Store
 // ----------------------------------------------------------------
 export interface MatchStore {
-  // Estado
   currentMatch: Match | null;
   savedMatches: Match[];
 
-  // Configuración
-  setInitialMatchData: (config: MatchConfig) => string; // devuelve el id creado
+  setInitialMatchData: (config: MatchConfig) => string;
   clearCurrentMatch: () => void;
 
-  // Marcador
   incrementPointsA: () => void;
   incrementPointsB: () => void;
   setPointsA: (points: number) => void;
@@ -105,19 +97,19 @@ export interface MatchStore {
   incrementSetsB: () => void;
   setCurrentSet: (set: number) => void;
 
-  // Rally
   addRallyAction: (action: RallyAction, index?: number) => void;
-  finishRally: (winner: "A" | "B") => void; // cierra el rally y asigna punto
-  clearCurrentRally: () => void; // elimina el rally en curso
+  finishRally: (winner: "A" | "B") => void;
+  clearCurrentRally: () => void;
 
-  // Gestión de partidos guardados
   saveCurrentMatch: (status: "partial" | "finished") => void;
   loadMatch: (matchId: string) => void;
   deleteMatch: (matchId: string) => void;
+
+  syncMatchToServer: (match: Match) => Promise<void>;
 }
 
 // ----------------------------------------------------------------
-// 3. Implementación del Store con persistencia
+// 3. Implementación
 // ----------------------------------------------------------------
 
 const generateMatchId = (config: MatchConfig): string => {
@@ -128,6 +120,25 @@ const generateMatchId = (config: MatchConfig): string => {
     /\s/g,
     "-",
   );
+};
+
+// Función auxiliar para refrescar el token (sin depender de useAuthStore como hook)
+const refreshAccessToken = async (): Promise<boolean> => {
+  const { refreshToken } = useAuthStore.getState();
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/token/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    useAuthStore.setState({ token: data.access });
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const useMatchStore = create<MatchStore>()(
@@ -264,11 +275,9 @@ export const useMatchStore = create<MatchStore>()(
             history.push(setEntry);
           }
 
-          // El rally en curso es el último y sin winner
           let rallies = [...setEntry.rallies];
           let rallyInProgress = rallies[rallies.length - 1];
           if (!rallyInProgress || rallyInProgress.winner) {
-            // Crear uno nuevo
             rallyInProgress = {
               winner: undefined,
               scoreAtTheTime: {
@@ -310,7 +319,7 @@ export const useMatchStore = create<MatchStore>()(
           if (!setEntry) return state;
           const rallies = [...setEntry.rallies];
           const lastRally = rallies[rallies.length - 1];
-          if (!lastRally || lastRally.winner) return state; // ya cerrado o inexistente
+          if (!lastRally || lastRally.winner) return state;
 
           lastRally.winner = winner;
           rallies[rallies.length - 1] = lastRally;
@@ -347,7 +356,7 @@ export const useMatchStore = create<MatchStore>()(
           const rallies = [...setEntry.rallies];
           const lastRally = rallies[rallies.length - 1];
           if (lastRally && !lastRally.winner) {
-            rallies.pop(); // borra el rally en construcción
+            rallies.pop();
           }
           setEntry.rallies = rallies;
           return {
@@ -368,6 +377,7 @@ export const useMatchStore = create<MatchStore>()(
             ...state.currentMatch,
             status,
           };
+          get().syncMatchToServer(matchToSave);
           return {
             savedMatches: [...state.savedMatches, matchToSave],
             currentMatch: null,
@@ -388,6 +398,39 @@ export const useMatchStore = create<MatchStore>()(
         set((state) => ({
           savedMatches: state.savedMatches.filter((m) => m.id !== matchId),
         })),
+
+      // --- Sincronización con el servidor ---
+      syncMatchToServer: async (match: Match) => {
+        // Forzar renovación del token antes de enviar
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          console.error("No se pudo renovar el token");
+          return;
+        }
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+
+        const response = await fetch("http://127.0.0.1:8000/api/matches/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(match),
+        });
+
+        if (!response.ok) {
+          console.error("Error al sincronizar el partido:", response.status);
+          return;
+        }
+
+        const savedMatch = await response.json();
+        set((state) => ({
+          savedMatches: state.savedMatches.map((m) =>
+            m.id === match.id ? { ...m, serverId: savedMatch.id } : m,
+          ),
+        }));
+      },
     }),
     {
       name: "match-storage",

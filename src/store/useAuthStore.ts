@@ -3,20 +3,19 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 interface User {
-  id: number;
+  id?: number;
   email: string;
   role: "admin" | "coach";
-  // otros campos que devuelva tu backend...
 }
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  token: string | null; // access token
+  refreshToken: string | null; // refresh token
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  // Opcional: checkAuth para validar token al iniciar la app
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,32 +23,35 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
-      login: async (email, password) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
-          // Simulación: en producción reemplaza esto por fetch a tu API
-          const fakeUser: User = {
-            id: 1,
-            email,
-            role: "coach",
-          };
-          const fakeToken = "fake-jwt-token";
+          const response = await fetch("http://127.0.0.1:8000/api/token/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
 
-          // Simulamos un pequeño retardo
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (!response.ok) {
+            throw new Error("Credenciales incorrectas");
+          }
+
+          const data = await response.json();
 
           set({
-            user: fakeUser,
-            token: fakeToken,
+            user: { email, role: "coach" },
+            token: data.access,
+            refreshToken: data.refresh, // ← ahora se guarda
             isAuthenticated: true,
             isLoading: false,
           });
-        } catch (error) {
+        } catch (error: any) {
           set({ isLoading: false });
-          throw error; // lo capturará la pantalla de login para mostrar error
+          throw new Error(error.message || "Error al iniciar sesión");
         }
       },
 
@@ -57,16 +59,18 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           token: null,
+          refreshToken: null,
           isAuthenticated: false,
         });
       },
     }),
     {
       name: "auth-storage",
-      storage: createJSONStorage(() => localStorage), // o AsyncStorage
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken, // ← ahora se persiste
         isAuthenticated: state.isAuthenticated,
       }),
     },

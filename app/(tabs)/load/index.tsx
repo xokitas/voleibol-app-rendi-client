@@ -1,6 +1,7 @@
 // app/(tabs)/load/index.tsx
 import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
+import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 
 export default function LoadMatchScreen() {
@@ -28,8 +30,14 @@ export default function LoadMatchScreen() {
   const loadMatch = useMatchStore((s) => s.loadMatch);
   const deleteMatch = useMatchStore((s) => s.deleteMatch);
   const currentMatch = useMatchStore((s) => s.currentMatch);
+  const user = useAuthStore((s) => s.user);
 
-  // Estado simplificado para el modal
+  // Filtros
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [filterDate, setFilterDate] = useState<string>("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Modal unificado
   const [modal, setModal] = useState<{
     visible: boolean;
     title: string;
@@ -46,15 +54,20 @@ export default function LoadMatchScreen() {
     onConfirm: () => {},
   });
 
-  // Mostramos todos los partidos parciales (sin filtrar por plataforma)
+  // Partidos parciales con todos los filtros
   const pendingMatches = savedMatches.filter((m) => {
     if (m.status !== "partial") return false;
     if (filter && m.config.eventType?.toLowerCase() !== filter.toLowerCase())
       return false;
+    if (showOnlyMine && user?.email && m.config.createdBy !== user.email)
+      return false;
+    if (filterDate) {
+      const matchDate = m.config.date?.split("T")[0];
+      if (matchDate !== filterDate) return false;
+    }
     return true;
   });
 
-  // Al pulsar Reanudar, verificamos la plataforma
   const handleResumePress = (matchId: string) => {
     const match = savedMatches.find((m) => m.id === matchId);
     if (!match) return;
@@ -125,12 +138,95 @@ export default function LoadMatchScreen() {
 
       <View style={tw`flex-1 ${isMobile ? "px-3 py-2" : "p-5 pt-4"}`}>
         <Text
-          style={tw`${
-            isMobile ? "text-[10px]" : "text-2xl"
-          } font-black text-slate-400 uppercase mb-4`}
+          style={tw`${isMobile ? "text-[10px]" : "text-2xl"} font-black text-slate-400 uppercase mb-4`}
         >
           Partidos Pendientes
         </Text>
+
+        {/* Filtro Mis partidos */}
+        {user?.email && (
+          <View style={tw`flex-row gap-2 mb-4`}>
+            <TouchableOpacity
+              onPress={() => setShowOnlyMine(false)}
+              style={tw`${!showOnlyMine ? "bg-[#003366]" : "bg-slate-200"} px-4 py-2 rounded-full`}
+            >
+              <Text
+                style={tw`${!showOnlyMine ? "text-white" : "text-slate-600"} text-xs font-bold`}
+              >
+                Todos
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowOnlyMine(true)}
+              style={tw`${showOnlyMine ? "bg-[#003366]" : "bg-slate-200"} px-4 py-2 rounded-full`}
+            >
+              <Text
+                style={tw`${showOnlyMine ? "text-white" : "text-slate-600"} text-xs font-bold`}
+              >
+                Mis partidos
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Filtro por fecha */}
+        <View style={tw`flex-row items-center gap-2 mb-4`}>
+          <Text style={tw`text-xs font-bold text-slate-500`}>Fecha:</Text>
+          {Platform.OS === "web" ? (
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              style={{
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                padding: "4px 8px",
+                fontSize: 12,
+                color: "#334155",
+                backgroundColor: "white",
+                outline: "none",
+              }}
+            />
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                style={tw`bg-white border border-slate-200 px-3 py-1.5 rounded-lg`}
+              >
+                <Text style={tw`text-xs text-slate-600`}>
+                  {filterDate || "Seleccionar fecha"}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={filterDate ? new Date(filterDate) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      const yyyy = selectedDate.getFullYear();
+                      const mm = String(selectedDate.getMonth() + 1).padStart(
+                        2,
+                        "0",
+                      );
+                      const dd = String(selectedDate.getDate()).padStart(
+                        2,
+                        "0",
+                      );
+                      setFilterDate(`${yyyy}-${mm}-${dd}`);
+                    }
+                  }}
+                />
+              )}
+            </>
+          )}
+          {filterDate !== "" && (
+            <TouchableOpacity onPress={() => setFilterDate("")}>
+              <Ionicons name="close-circle" size={18} color="#94a3b8" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         <FlatList
           data={pendingMatches}
@@ -167,14 +263,10 @@ export default function LoadMatchScreen() {
 
                 {/* Columna 2: Indicador de plataforma */}
                 <View
-                  style={tw`items-center justify-center ${
-                    isMobile ? "w-16" : "w-20"
-                  }`}
+                  style={tw`items-center justify-center ${isMobile ? "w-16" : "w-20"}`}
                 >
                   <Text
-                    style={tw`${
-                      isMobile ? "text-[7px]" : "text-[9px]"
-                    } text-slate-400 mb-0.5 text-center`}
+                    style={tw`${isMobile ? "text-[7px]" : "text-[9px]"} text-slate-400 mb-0.5 text-center`}
                   >
                     Se registró en:
                   </Text>
@@ -194,28 +286,20 @@ export default function LoadMatchScreen() {
                   <View style={tw`flex-row gap-2`}>
                     <TouchableOpacity
                       onPress={() => handleResumePress(item.id)}
-                      style={tw`bg-[#003366] ${
-                        isMobile ? "px-2 py-1.5" : "px-3 py-2"
-                      } rounded-lg`}
+                      style={tw`bg-[#003366] ${isMobile ? "px-2 py-1.5" : "px-3 py-2"} rounded-lg`}
                     >
                       <Text
-                        style={tw`text-white ${
-                          isMobile ? "text-[10px]" : "text-xs"
-                        } font-bold`}
+                        style={tw`text-white ${isMobile ? "text-[10px]" : "text-xs"} font-bold`}
                       >
                         Reanudar
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleDeletePress(item.id)}
-                      style={tw`border border-red-300 ${
-                        isMobile ? "px-2 py-1.5" : "px-3 py-2"
-                      } rounded-lg`}
+                      style={tw`border border-red-300 ${isMobile ? "px-2 py-1.5" : "px-3 py-2"} rounded-lg`}
                     >
                       <Text
-                        style={tw`text-red-500 ${
-                          isMobile ? "text-[10px]" : "text-xs"
-                        } font-bold`}
+                        style={tw`text-red-500 ${isMobile ? "text-[10px]" : "text-xs"} font-bold`}
                       >
                         Eliminar
                       </Text>
@@ -227,9 +311,7 @@ export default function LoadMatchScreen() {
           }}
           ListEmptyComponent={
             <Text
-              style={tw`text-center text-slate-400 ${
-                isMobile ? "text-sm" : ""
-              } mt-10`}
+              style={tw`text-center text-slate-400 ${isMobile ? "text-sm" : ""} mt-10`}
             >
               No hay partidos para continuar
             </Text>
@@ -237,7 +319,6 @@ export default function LoadMatchScreen() {
         />
       </View>
 
-      {/* Modal unificado */}
       <CustomModal
         visible={modal.visible}
         title={modal.title}
