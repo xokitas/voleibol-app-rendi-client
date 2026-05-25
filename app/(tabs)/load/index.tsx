@@ -2,7 +2,7 @@
 import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   FlatList,
@@ -19,6 +19,14 @@ import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 
 export default function LoadMatchScreen() {
+  const fetchMatchesFromServer = useMatchStore((s) => s.fetchMatchesFromServer);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMatchesFromServer();
+    }, []),
+  );
+
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -67,6 +75,15 @@ export default function LoadMatchScreen() {
     }
     return true;
   });
+
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const handleResumePress = (matchId: string) => {
     const match = savedMatches.find((m) => m.id === matchId);
@@ -261,7 +278,7 @@ export default function LoadMatchScreen() {
                   </Text>
                 </View>
 
-                {/* Columna 2: Indicador de plataforma */}
+                {/* Columna 2: Indicador de plataforma + fecha centrada */}
                 <View
                   style={tw`items-center justify-center ${isMobile ? "w-16" : "w-20"}`}
                 >
@@ -279,6 +296,11 @@ export default function LoadMatchScreen() {
                     size={isMobile ? 16 : 20}
                     color={platformColor}
                   />
+                  <Text
+                    style={tw`text-slate-400 ${isMobile ? "text-[7px]" : "text-[9px]"} mt-1 text-center font-medium`}
+                  >
+                    {formatDate(item.config.date)}
+                  </Text>
                 </View>
 
                 {/* Columna 3: Botones */}

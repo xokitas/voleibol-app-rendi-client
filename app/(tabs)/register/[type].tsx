@@ -384,36 +384,50 @@ export default function RegisterDataScreen() {
     const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
     const currentPlatform: "web" | "mobile" =
       Platform.OS === "web" ? "web" : "mobile";
+
     const matchConfig = {
       tournament: formData.denomination || `${formData.meso} ${formData.micro}`,
       category: formData.category,
       date: formData.date.toISOString(),
       matchNumber: parseInt(formData.micro_num) || 1,
-      branch,
+      gender: branch,
       eventType:
         (type as string).charAt(0).toUpperCase() + (type as string).slice(1),
       startTime: formData.start_time.toTimeString().substring(0, 5),
       place: formData.place || undefined,
       denomination: formData.denomination || undefined,
-      meso: formData.meso,
-      micro: formData.micro,
-      weekDay: formData.week_day,
+      // Correcciones: aserción de tipo para las claves
+      meso: MESO_MAP[formData.meso as keyof typeof MESO_MAP] || formData.meso,
+      micro:
+        MICRO_MAP[formData.micro as keyof typeof MICRO_MAP] || formData.micro,
+      weekDay:
+        WEEK_MAP[formData.week_day as keyof typeof WEEK_MAP] ||
+        formData.week_day,
       microNumber: formData.micro_num,
       objective: formData.objective || undefined,
       teamA: {
         name: teamA,
         players: playersA
-          .map((p) => ({ number: p.number, fullName: p.fullName }))
-          .filter((p) => p.number !== ""),
+          .filter((p) => p.number !== "")
+          .map((p) => ({
+            number: p.number,
+            fullName: p.fullName,
+            position: p.position, // incluido
+            zone: p.zone, // incluido
+          })),
       },
       teamB: {
         name: teamB,
         players: playersB
-          .map((p) => ({ number: p.number, fullName: p.fullName }))
-          .filter((p) => p.number !== ""),
+          .filter((p) => p.number !== "")
+          .map((p) => ({
+            number: p.number,
+            fullName: p.fullName,
+            position: p.position,
+            zone: p.zone,
+          })),
       },
       platform: currentPlatform,
-      gender: branch,
       createdBy: user?.email || undefined,
     };
 

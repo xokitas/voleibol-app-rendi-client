@@ -1,7 +1,7 @@
 // app/(tabs)/results/index.tsx
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   FlatList,
@@ -18,6 +18,13 @@ import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useMatchStore, type Match } from "../../../src/store/useMatchStore";
 
 export default function ResultsScreen() {
+  const fetchMatchesFromServer = useMatchStore((s) => s.fetchMatchesFromServer);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMatchesFromServer();
+    }, []),
+  );
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();

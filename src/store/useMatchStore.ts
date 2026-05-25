@@ -106,6 +106,7 @@ export interface MatchStore {
   deleteMatch: (matchId: string) => void;
 
   syncMatchToServer: (match: Match) => Promise<void>;
+  fetchMatchesFromServer: () => Promise<void>; // ← nueva acción
 }
 
 // ----------------------------------------------------------------
@@ -122,7 +123,6 @@ const generateMatchId = (config: MatchConfig): string => {
   );
 };
 
-// Función auxiliar para refrescar el token (sin depender de useAuthStore como hook)
 const refreshAccessToken = async (): Promise<boolean> => {
   const { refreshToken } = useAuthStore.getState();
   if (!refreshToken) return false;
@@ -401,7 +401,6 @@ export const useMatchStore = create<MatchStore>()(
 
       // --- Sincronización con el servidor ---
       syncMatchToServer: async (match: Match) => {
-        // Forzar renovación del token antes de enviar
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
           console.error("No se pudo renovar el token");
@@ -410,8 +409,13 @@ export const useMatchStore = create<MatchStore>()(
         const token = useAuthStore.getState().token;
         if (!token) return;
 
-        const response = await fetch("http://127.0.0.1:8000/api/matches/", {
-          method: "POST",
+        const url = match.serverId
+          ? `http://127.0.0.1:8000/api/matches/${match.serverId}/`
+          : "http://127.0.0.1:8000/api/matches/";
+        const method = match.serverId ? "PUT" : "POST";
+
+        const response = await fetch(url, {
+          method,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -420,7 +424,8 @@ export const useMatchStore = create<MatchStore>()(
         });
 
         if (!response.ok) {
-          console.error("Error al sincronizar el partido:", response.status);
+          const errorData = await response.json();
+          console.error("Error al sincronizar:", errorData);
           return;
         }
 
@@ -430,6 +435,59 @@ export const useMatchStore = create<MatchStore>()(
             m.id === match.id ? { ...m, serverId: savedMatch.id } : m,
           ),
         }));
+      },
+
+      fetchMatchesFromServer: async () => {
+        const token = useAuthStore.getState().token;
+        if (!token) return;
+
+        const tryFetch = async (authToken: string) => {
+          const res = await fetch("http://127.0.0.1:8000/api/user-matches/", {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          if (res.status === 401) {
+            const refreshed = await refreshAccessToken();
+            if (!refreshed) return [];
+            const newToken = useAuthStore.getState().token;
+            if (!newToken) return [];
+            const retryRes = await fetch(
+              "http://127.0.0.1:8000/api/user-matches/",
+              {
+                headers: { Authorization: `Bearer ${newToken}` },
+              },
+            );
+            if (!retryRes.ok) return [];
+            return retryRes.json();
+          }
+          if (!res.ok) return [];
+          return res.json();
+        };
+
+        const serverMatches = await tryFetch(token);
+        if (!Array.isArray(serverMatches)) return;
+
+        const localSaved = get().savedMatches;
+
+        const remoteMatches: Match[] = serverMatches.map((m: any) => ({
+          id: m.id.toString(),
+          serverId: m.id,
+          status: m.status === "IN_PROGRESS" ? "partial" : "finished",
+          config: m.config,
+          score: m.score,
+          history: m.history,
+          totalTimeSeconds: m.totalTimeSeconds,
+          realTimeSeconds: m.realTimeSeconds,
+        }));
+
+        const newMatches = remoteMatches.filter(
+          (rm) => !localSaved.some((lm) => lm.serverId === rm.serverId),
+        );
+
+        if (newMatches.length > 0) {
+          set((state) => ({
+            savedMatches: [...state.savedMatches, ...newMatches],
+          }));
+        }
       },
     }),
     {
