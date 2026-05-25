@@ -1,5 +1,5 @@
 // hooks/useScoutingLogic.ts
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useMatchStore,
   type MatchRules,
@@ -7,7 +7,31 @@ import {
 } from "../src/store/useMatchStore";
 
 const ACTION_FLOW: Record<string, string[]> = {
-  /* ... igual que antes ... */
+  START: [
+    "SERVICIO",
+    "ERRORES_SERV",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
+  SERVICIO: [
+    "RECEPCION",
+    "DEFENSA",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
+  RECEPCION: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  DEFENSA: ["ACOMODADA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  ACOMODADA: ["ATAQUE", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  ATAQUE: ["BLOQUEO", "DEFENSA", "ERRORES_COM", "ERRORES_POS", "ERRORES_TEC"],
+  BLOQUEO: [
+    "ACOMODADA",
+    "DEFENSA",
+    "ERRORES_COM",
+    "ERRORES_POS",
+    "ERRORES_TEC",
+  ],
 };
 
 export const useScoutingLogic = () => {
@@ -45,14 +69,14 @@ export const useScoutingLogic = () => {
     hasTimeLimit: false,
   };
 
-  const currentRallyActions: RallyAction[] = (() => {
+  const currentRallyActions = useMemo<RallyAction[]>(() => {
     if (!currentMatch) return [];
     const setEntry = currentMatch.history.find((h) => h.set === currentSet);
     if (!setEntry) return [];
     const lastRally = setEntry.rallies[setEntry.rallies.length - 1];
     if (lastRally && !lastRally.winner) return lastRally.actions;
     return [];
-  })();
+  }, [currentMatch, currentSet]);
 
   const rallyHistory =
     currentMatch?.history.flatMap((set) =>

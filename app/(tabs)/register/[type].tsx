@@ -1,5 +1,6 @@
 // app/(tabs)/register/[type].tsx
 import CustomModal from "@/components/CustomModal";
+import { useAuthStore } from "@/src/store/useAuthStore";
 import type { MatchRules } from "@/src/store/useMatchStore";
 import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
@@ -379,6 +380,7 @@ export default function RegisterDataScreen() {
     setFormData((prev) => ({ ...prev, [key]: value }));
 
   const handleStartEvent = () => {
+    const user = useAuthStore.getState().user;
     const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
     const currentPlatform: "web" | "mobile" =
       Platform.OS === "web" ? "web" : "mobile";
@@ -412,6 +414,7 @@ export default function RegisterDataScreen() {
       },
       platform: currentPlatform,
       gender: branch,
+      createdBy: user?.email || undefined,
     };
 
     if (type === "oficial") {

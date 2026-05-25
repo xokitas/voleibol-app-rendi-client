@@ -1,9 +1,11 @@
 // app/(tabs)/results/statistics.tsx
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   Modal,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -19,7 +21,8 @@ import { useExportStatsPDF } from "../../../hooks/PDF/useExportStatsPDF";
 import { useAggregatedStats } from "../../../hooks/useAggregatedStats";
 import { useStats } from "../../../hooks/useStats";
 import tw from "../../../lib/tailwind";
-import { useMatchStore, type Match } from "../../../src/store/useMatchStore";
+import { useAuthStore } from "../../../src/store/useAuthStore";
+import { useMatchStore } from "../../../src/store/useMatchStore";
 
 // ----------------------------------------------------------------
 // Constantes (sin cambios)
@@ -71,6 +74,7 @@ export default function StatisticsScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 1024;
   const savedMatches = useMatchStore((s) => s.savedMatches);
+  const user = useAuthStore((s) => s.user);
 
   // Estados para los filtros
   const [playerName, setPlayerName] = useState<string>("");
@@ -82,6 +86,11 @@ export default function StatisticsScreen() {
   const [meso, setMeso] = useState<string>("");
   const [micro, setMicro] = useState<string>("");
   const [gender, setGender] = useState<string>("");
+
+  // Nuevos filtros
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [filterDate, setFilterDate] = useState<string>("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
@@ -104,6 +113,19 @@ export default function StatisticsScreen() {
     setExpandedRallies((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Aplicar filtro de "Mis partidos" y fecha a la lista base antes de cualquier otro cálculo
+  const baseMatches = useMemo(() => {
+    return savedMatches.filter((m) => {
+      if (showOnlyMine && user?.email && m.config.createdBy !== user.email)
+        return false;
+      if (filterDate) {
+        const matchDate = m.config.date?.split("T")[0];
+        if (matchDate !== filterDate) return false;
+      }
+      return true;
+    });
+  }, [savedMatches, showOnlyMine, user, filterDate]);
+
   const activeFilters = {
     playerName,
     teamName,
@@ -116,16 +138,7 @@ export default function StatisticsScreen() {
     gender,
   };
 
-  // Función auxiliar para obtener el ID de un jugador en un partido específico
-  const getPlayerIdInMatch = (match: Match, name: string): string | null => {
-    const playerA = match.config.teamA.players.find((p) => p.fullName === name);
-    if (playerA) return `A-${playerA.number}`;
-    const playerB = match.config.teamB.players.find((p) => p.fullName === name);
-    if (playerB) return `B-${playerB.number}`;
-    return null;
-  };
-
-  // 1. Listas base
+  // 1. Listas base (valores únicos) a partir de los partidos ya filtrados por usuario/fecha
   const allUniqueValues = useMemo(() => {
     const players = new Set<string>();
     const teams = new Set<string>();
@@ -137,7 +150,7 @@ export default function StatisticsScreen() {
     const micros = new Set<string>();
     const genders = new Set<string>();
 
-    savedMatches.forEach((m) => {
+    baseMatches.forEach((m) => {
       m.config.teamA.players.forEach((p) => players.add(p.fullName));
       m.config.teamB.players.forEach((p) => players.add(p.fullName));
       if (m.config.teamA.name) teams.add(m.config.teamA.name);
@@ -163,12 +176,12 @@ export default function StatisticsScreen() {
       micros: Array.from(micros).sort(),
       genders: Array.from(genders).sort(),
     };
-  }, [savedMatches]);
+  }, [baseMatches]);
 
-  // 2. Listas encadenadas
+  // 2. Listas encadenadas (ahora usan baseMatches)
   const filteredLists = useMemo(() => {
     const matchesFor = (exceptKey: string) =>
-      savedMatches.filter((m) => {
+      baseMatches.filter((m) => {
         if (
           exceptKey !== "denomination" &&
           denomination &&
@@ -243,7 +256,7 @@ export default function StatisticsScreen() {
       genders: extract((m) => [m.config.gender].filter(Boolean)),
     };
   }, [
-    savedMatches,
+    baseMatches,
     playerName,
     teamName,
     denomination,
@@ -255,8 +268,8 @@ export default function StatisticsScreen() {
     gender,
   ]);
 
-  // 3. Acciones agregadas
-  const { aggregatedActions } = useAggregatedStats(savedMatches, activeFilters);
+  // 3. Acciones agregadas (usando baseMatches en lugar de savedMatches)
+  const { aggregatedActions } = useAggregatedStats(baseMatches, activeFilters);
 
   // 4. Estadísticas generales
   const actionsMappedForStats = aggregatedActions.map((a) => ({
@@ -360,9 +373,9 @@ export default function StatisticsScreen() {
     return { categoriesMap: categories, radarData: radar };
   }, [aggregatedActions]);
 
-  // Partidos que cumplen los filtros (array completo + conteo)
+  // Partidos que cumplen todos los filtros (para la lista expandible)
   const filteredMatches = useMemo(() => {
-    return savedMatches.filter((m) => {
+    return baseMatches.filter((m) => {
       if (denomination && m.config.denomination !== denomination) return false;
       if (category && m.config.category !== category) return false;
       if (eventType && m.config.eventType !== eventType) return false;
@@ -394,7 +407,7 @@ export default function StatisticsScreen() {
       }
       return true;
     });
-  }, [savedMatches, activeFilters]);
+  }, [baseMatches, activeFilters]);
 
   const matchesPlayed = filteredMatches.length;
 
@@ -512,6 +525,91 @@ export default function StatisticsScreen() {
       <ScrollView
         contentContainerStyle={tw`${isMobile ? "px-2 py-1" : "p-5 pb-20"}`}
       >
+        {/* Filtro Mis partidos */}
+        {user?.email && (
+          <View style={tw`flex-row gap-2 mb-4`}>
+            <TouchableOpacity
+              onPress={() => setShowOnlyMine(false)}
+              style={tw`${!showOnlyMine ? "bg-[#003366]" : "bg-slate-200"} px-4 py-2 rounded-full`}
+            >
+              <Text
+                style={tw`${!showOnlyMine ? "text-white" : "text-slate-600"} text-xs font-bold`}
+              >
+                Todos
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowOnlyMine(true)}
+              style={tw`${showOnlyMine ? "bg-[#003366]" : "bg-slate-200"} px-4 py-2 rounded-full`}
+            >
+              <Text
+                style={tw`${showOnlyMine ? "text-white" : "text-slate-600"} text-xs font-bold`}
+              >
+                Mis partidos
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Filtro por fecha */}
+        <View style={tw`flex-row items-center gap-2 mb-4`}>
+          <Text style={tw`text-xs font-bold text-slate-500`}>Fecha:</Text>
+          {Platform.OS === "web" ? (
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              style={{
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                padding: "4px 8px",
+                fontSize: 12,
+                color: "#334155",
+                backgroundColor: "white",
+                outline: "none",
+              }}
+            />
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                style={tw`bg-white border border-slate-200 px-3 py-1.5 rounded-lg`}
+              >
+                <Text style={tw`text-xs text-slate-600`}>
+                  {filterDate || "Seleccionar fecha"}
+                </Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  value={filterDate ? new Date(filterDate) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      const yyyy = selectedDate.getFullYear();
+                      const mm = String(selectedDate.getMonth() + 1).padStart(
+                        2,
+                        "0",
+                      );
+                      const dd = String(selectedDate.getDate()).padStart(
+                        2,
+                        "0",
+                      );
+                      setFilterDate(`${yyyy}-${mm}-${dd}`);
+                    }
+                  }}
+                />
+              )}
+            </>
+          )}
+          {filterDate !== "" && (
+            <TouchableOpacity onPress={() => setFilterDate("")}>
+              <Ionicons name="close-circle" size={18} color="#94a3b8" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Filtros */}
         <View
           style={tw`mb-4 bg-slate-50 ${isMobile ? "p-2" : "p-4"} rounded-2xl border border-slate-200`}
@@ -687,7 +785,17 @@ export default function StatisticsScreen() {
                 {filteredMatches.map((match) => {
                   const isExpanded = expandedMatchId === match.id;
                   const matchPlayerId = playerName
-                    ? getPlayerIdInMatch(match, playerName)
+                    ? (() => {
+                        const playerA = match.config.teamA.players.find(
+                          (p) => p.fullName === playerName,
+                        );
+                        if (playerA) return `A-${playerA.number}`;
+                        const playerB = match.config.teamB.players.find(
+                          (p) => p.fullName === playerName,
+                        );
+                        if (playerB) return `B-${playerB.number}`;
+                        return null;
+                      })()
                     : null;
                   let teamPrefix: string | null = null;
                   if (teamName && match.config.teamA.name === teamName)
@@ -695,13 +803,11 @@ export default function StatisticsScreen() {
                   else if (teamName && match.config.teamB.name === teamName)
                     teamPrefix = "B";
 
-                  // Determinar ganador de cada set basado en el último rally
                   const setWinners: Record<number, string> = {};
                   match.history.forEach((set) => {
                     const lastRally = set.rallies[set.rallies.length - 1];
-                    if (lastRally?.winner) {
+                    if (lastRally?.winner)
                       setWinners[set.set] = lastRally.winner;
-                    }
                   });
 
                   return (
@@ -738,7 +844,6 @@ export default function StatisticsScreen() {
                             const setKey = `${match.id}-set-${set.set}`;
                             const isSetExpanded = expandedSets[setKey];
                             const winner = setWinners[set.set];
-
                             return (
                               <View key={set.set} style={tw`mb-3`}>
                                 <TouchableOpacity
@@ -835,11 +940,7 @@ export default function StatisticsScreen() {
                                                     return (
                                                       <Text
                                                         key={aIdx}
-                                                        style={tw`text-xs py-0.5 px-1 rounded ${
-                                                          isHighlighted
-                                                            ? "bg-blue-100 text-blue-900 font-bold"
-                                                            : "text-slate-700"
-                                                        }`}
+                                                        style={tw`text-xs py-0.5 px-1 rounded ${isHighlighted ? "bg-blue-100 text-blue-900 font-bold" : "text-slate-700"}`}
                                                       >
                                                         {action.playerId} →{" "}
                                                         {action.category}/
