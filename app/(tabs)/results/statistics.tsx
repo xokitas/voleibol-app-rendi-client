@@ -1,7 +1,7 @@
 // app/(tabs)/results/statistics.tsx
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   Modal,
@@ -70,6 +70,13 @@ const ALL_SUB_ACTIONS: Record<string, string[]> = {
 };
 
 export default function StatisticsScreen() {
+  const fetchMatchesFromServer = useMatchStore((s) => s.fetchMatchesFromServer);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMatchesFromServer();
+    }, []),
+  );
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isMobile = width < 1024;
