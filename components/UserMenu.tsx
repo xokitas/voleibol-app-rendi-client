@@ -94,7 +94,7 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
                     <Text style={styles.statusText}>Modo Invitado</Text>
                     <Text style={styles.infoText}>
                       Tus datos se guardan localmente. Inicia sesión para
-                      respaldarlos en la nube.
+                      respaldarlos en el servidor.
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -102,12 +102,6 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
                     onPress={handleLoginPress}
                   >
                     <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.settingsBtn}
-                    onPress={() => alert("Ajustes aún no disponibles")}
-                  >
-                    <Text style={styles.settingsBtnText}>Ajustes de App</Text>
                   </TouchableOpacity>
                 </>
               )}

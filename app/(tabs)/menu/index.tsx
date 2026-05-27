@@ -1,5 +1,6 @@
 // app/(tabs)/menu/index.tsx
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -41,6 +42,18 @@ export default function MenuScreen() {
 
   return (
     <SafeAreaView style={tw`flex-1 bg-[#F8F8FF]`} edges={["top"]}>
+      <Image
+        source={require("../../../assets/images/fondo.png")}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: isMobile ? 0.15 : 0.25,
+        }}
+        contentFit="contain"
+      />
       <HeaderMenu
         title={isMobile ? "Menú" : "Menú de Opciones"}
         onBack={() => router.replace("/")}
