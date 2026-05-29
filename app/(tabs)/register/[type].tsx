@@ -6,7 +6,7 @@ import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
 import tw from "../../../lib/tailwind";
 
-// Traductor para el backend
+// Traductores para meso/micro/weekDay
 const MESO_MAP = {
   Entrante: "ENT",
   Básico: "BAS",
@@ -64,7 +64,18 @@ const ZONE_OPTIONS = [
   { label: "Derecha", value: "DER" },
 ];
 
-// --- 1. COMPONENTE PARA FILAS ---
+// --- Jerarquía de categorías ---
+const CATEGORY_TREE: Record<string, string[]> = {
+  Nacionales: [
+    "Pioneril 11-12 años",
+    "Escolar 13-15 años",
+    "Juvenil 16-18 años",
+    "Primera categoría",
+  ],
+  Internacionales: ["Sub 15", "Sub 17", "Sub 19", "Sub 23", "Mayores"],
+};
+
+// --- Componentes auxiliares ---
 const FormRow = ({
   children,
   zIndex,
@@ -82,41 +93,63 @@ const FormRow = ({
   </View>
 );
 
-// --- 2. COMPONENTE PARA TEXTO (adaptado a móvil) ---
 const SmartInput = ({
   label,
   value,
   onChangeText,
   keyboardType = "default",
+  validation,
+  errorMessage,
 }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
   const isMobile = width < 1024;
+  const [touched, setTouched] = useState(false);
+
+  const handleChange = (text: string) => {
+    if (validation) {
+      const filtered = text.split("").filter(validation).join("");
+      onChangeText(filtered);
+    } else {
+      onChangeText(text);
+    }
+    if (!touched) setTouched(true);
+  };
+
+  const isValid =
+    touched && validation ? value.split("").every(validation) : true;
 
   return (
-    <View
-      style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
-    >
-      {isPC && (
-        <Text
-          style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
-        >
-          {label}:
-        </Text>
+    <View style={tw`flex-1`}>
+      <View
+        style={tw`flex-row items-center border rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2 ${
+          !isValid ? "border-red-500" : "border-slate-300"
+        }`}
+      >
+        {isPC && (
+          <Text
+            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+          >
+            {label}:
+          </Text>
+        )}
+        <TextInput
+          style={tw`flex-1 h-full text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}
+          value={value}
+          placeholder={isPC ? "" : label}
+          placeholderTextColor="#94A3B8"
+          onChangeText={handleChange}
+          keyboardType={keyboardType}
+          onBlur={() => setTouched(true)}
+        />
+      </View>
+      {!isValid && errorMessage && (
+        <Text style={tw`text-red-500 text-xs ml-1 mt-1`}>{errorMessage}</Text>
       )}
-      <TextInput
-        style={tw`flex-1 h-full text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}
-        value={value}
-        placeholder={isPC ? "" : label}
-        placeholderTextColor="#94A3B8"
-        onChangeText={onChangeText}
-        keyboardType={keyboardType}
-      />
     </View>
   );
 };
 
-// --- 3. SELECTOR ESTILIZADO (adaptado a móvil) ---
 const SmartSelect = ({
   label,
   options,
@@ -125,17 +158,37 @@ const SmartSelect = ({
   isOpen,
   setIsOpen,
   isMini,
+  disabled = false,
 }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
   const isMobile = width < 1024;
 
+  const miniHeight = isMini
+    ? isMobile
+      ? "h-7"
+      : "h-10"
+    : isMobile
+      ? "h-8"
+      : "h-12";
+  const miniTextSize = isMini
+    ? isMobile
+      ? "text-[9px]"
+      : "text-sm"
+    : isMobile
+      ? "text-xs"
+      : "text-sm";
+
   return (
     <View style={{ flex: 1, zIndex: 100 }}>
       <TouchableOpacity
-        onPress={() => setIsOpen(!isOpen ? label || value : null)}
-        activeOpacity={0.8}
-        style={tw`${isMini ? "h-7 px-1" : isMobile ? "h-8 px-2" : "h-12 px-3"} flex-row items-center border rounded-lg bg-slate-50 ${isMini ? "border-slate-200" : "border-slate-300"}`}
+        onPress={() => !disabled && setIsOpen(!isOpen ? label || value : null)}
+        activeOpacity={disabled ? 1 : 0.8}
+        style={tw`${miniHeight} px-3 flex-row items-center border rounded-lg ${
+          disabled
+            ? "bg-slate-200 border-slate-200"
+            : "bg-slate-50 border-slate-300"
+        } ${isMini ? "border-slate-200" : "border-slate-300"}`}
       >
         {isPC && !isMini && label !== "" && (
           <Text
@@ -145,24 +198,24 @@ const SmartSelect = ({
           </Text>
         )}
         <Text
-          style={tw`text-slate-700 ${isMini ? "text-[9px]" : isMobile ? "text-xs" : "text-sm"} flex-1 font-medium text-center`}
+          style={tw`text-slate-700 ${miniTextSize} flex-1 font-medium text-center`}
           numberOfLines={1}
         >
-          {value}
+          {disabled ? "Seleccionar..." : value}
         </Text>
         <Ionicons
           name={isOpen ? "chevron-up" : "chevron-down"}
-          size={isMini ? 8 : isMobile ? 12 : 14}
-          color="#003366"
+          size={isMini ? (isMobile ? 8 : 12) : isMobile ? 12 : 14}
+          color={disabled ? "#94a3b8" : "#003366"}
         />
       </TouchableOpacity>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <View
           style={[
             tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
             {
-              top: isMini ? 30 : isMobile ? 34 : 50,
+              top: isMini ? (isMobile ? 30 : 42) : isMobile ? 34 : 50,
               zIndex: 9999,
               elevation: 10,
               minWidth: isMini ? 80 : "auto",
@@ -180,7 +233,7 @@ const SmartSelect = ({
               style={tw`${isMini || isMobile ? "p-2" : "p-4"} border-b border-slate-100`}
             >
               <Text
-                style={tw`text-slate-700 ${isMini ? "text-[8px]" : isMobile ? "text-xs" : "text-sm"}`}
+                style={tw`text-slate-700 ${isMini ? (isMobile ? "text-[8px]" : "text-sm") : isMobile ? "text-xs" : "text-sm"}`}
               >
                 {opt}
               </Text>
@@ -192,7 +245,6 @@ const SmartSelect = ({
   );
 };
 
-// --- 4. FECHA Y HORA (adaptado a móvil) ---
 const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   const { width } = useWindowDimensions();
   const isPC = width >= 768;
@@ -311,7 +363,7 @@ export default function RegisterDataScreen() {
   const [formData, setFormData] = useState({
     denomination: "",
     place: "",
-    category: "Juvenil",
+    category: "Nacional Juvenil 16-18 años",
     sex: "Masculino",
     date: new Date(),
     start_time: new Date(),
@@ -349,15 +401,20 @@ export default function RegisterDataScreen() {
     hasTimeLimit: false,
   });
 
-  // Modal de partido en curso
   const [showExistingGameModal, setShowExistingGameModal] = useState(false);
+
+  // Estado para la categoría jerárquica
+  const [selectedMainCategory, setSelectedMainCategory] =
+    useState<string>("Nacionales");
+  const [selectedSubCategory, setSelectedSubCategory] =
+    useState<string>("Juvenil 16-18 años");
 
   // Limpiar formulario al entrar
   useEffect(() => {
     setFormData({
       denomination: "",
       place: "",
-      category: "Juvenil",
+      category: "Nacional Juvenil 16-18 años",
       sex: "Masculino",
       date: new Date(),
       start_time: new Date(),
@@ -371,6 +428,8 @@ export default function RegisterDataScreen() {
     setTeamB("Equipo B");
     setPlayersA(initialPlayers.map((p) => ({ ...p })));
     setPlayersB(initialPlayers.map((p) => ({ ...p })));
+    setSelectedMainCategory("Nacionales");
+    setSelectedSubCategory("Juvenil 16-18 años");
     if (currentMatch) {
       setShowExistingGameModal(true);
     }
@@ -379,7 +438,45 @@ export default function RegisterDataScreen() {
   const updateForm = (key: string, value: any) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
 
+  // Al cambiar la categoría principal se resetea la subcategoría y se actualiza el form
+  const handleMainCategoryChange = (mainCat: string) => {
+    setSelectedMainCategory(mainCat);
+    setSelectedSubCategory(""); // limpia subcategoría
+    updateForm("category", mainCat); // temporalmente solo la principal, hasta que se elija sub
+  };
+
+  const handleSubCategoryChange = (subCat: string) => {
+    setSelectedSubCategory(subCat);
+    const fullCategory = `${selectedMainCategory} ${subCat}`;
+    updateForm("category", fullCategory);
+  };
+
+  // Validación general de jugadores
+  const playersValidationErrors = useMemo(() => {
+    const errors: string[] = [];
+    const allPlayers = [...playersA, ...playersB];
+    allPlayers.forEach((p, idx) => {
+      if (!p.number || !/^\d+$/.test(p.number))
+        errors.push(`Jugador ${idx + 1}: número inválido`);
+      if (!p.fullName || !/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]+$/.test(p.fullName))
+        errors.push(`Jugador ${idx + 1}: nombre inválido`);
+    });
+    return errors;
+  }, [playersA, playersB]);
+
+  const isFormValid = useMemo(() => {
+    if (playersValidationErrors.length > 0) return false;
+    if (type === "oficial") {
+      if (!formData.denomination.trim()) return false;
+      if (!formData.place.trim()) return false;
+    }
+    // La categoría debe tener subcategoría seleccionada
+    if (!selectedSubCategory) return false;
+    return true;
+  }, [playersValidationErrors, formData, type, selectedSubCategory]);
+
   const handleStartEvent = () => {
+    if (!isFormValid) return;
     const user = useAuthStore.getState().user;
     const branch: "M" | "F" = formData.sex === "Masculino" ? "M" : "F";
     const currentPlatform: "web" | "mobile" =
@@ -396,7 +493,6 @@ export default function RegisterDataScreen() {
       startTime: formData.start_time.toTimeString().substring(0, 5),
       place: formData.place || undefined,
       denomination: formData.denomination || undefined,
-      // Correcciones: aserción de tipo para las claves
       meso: MESO_MAP[formData.meso as keyof typeof MESO_MAP] || formData.meso,
       micro:
         MICRO_MAP[formData.micro as keyof typeof MICRO_MAP] || formData.micro,
@@ -412,8 +508,8 @@ export default function RegisterDataScreen() {
           .map((p) => ({
             number: p.number,
             fullName: p.fullName,
-            position: p.position, // incluido
-            zone: p.zone, // incluido
+            position: p.position,
+            zone: p.zone,
           })),
       },
       teamB: {
@@ -447,6 +543,14 @@ export default function RegisterDataScreen() {
     field: string,
     value: string,
   ) => {
+    if (field === "fullName") {
+      const filtered = value.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]/g, "");
+      value = filtered;
+    } else if (field === "number") {
+      const filtered = value.replace(/\D/g, "");
+      value = filtered;
+    }
+
     const setter = team === "A" ? setPlayersA : setPlayersB;
     setter((prevPlayers) =>
       prevPlayers.map((player, i) =>
@@ -485,6 +589,10 @@ export default function RegisterDataScreen() {
                 label="Denominación"
                 value={formData.denomination}
                 onChangeText={(v: any) => updateForm("denomination", v)}
+                validation={(char: string) =>
+                  /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]$/.test(char)
+                }
+                errorMessage="Solo letras y espacios"
               />
               <SmartDateTime
                 label="Fecha"
@@ -504,6 +612,10 @@ export default function RegisterDataScreen() {
                 label="Lugar"
                 value={formData.place}
                 onChangeText={(v: any) => updateForm("place", v)}
+                validation={(char: string) =>
+                  /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]$/.test(char)
+                }
+                errorMessage="Solo letras y espacios"
               />
             </FormRow>
           </>
@@ -551,12 +663,18 @@ export default function RegisterDataScreen() {
                 label="No. Micro"
                 value={formData.micro_num}
                 keyboardType="numeric"
+                validation={(char: string) => /\d/.test(char)}
+                errorMessage="Solo números"
                 onChangeText={(v: any) => updateForm("micro_num", v)}
               />
               <SmartInput
                 label="Lugar"
                 value={formData.place}
                 onChangeText={(v: any) => updateForm("place", v)}
+                validation={(char: string) =>
+                  /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]$/.test(char)
+                }
+                errorMessage="Solo letras y espacios"
               />
             </FormRow>
           </>
@@ -603,12 +721,18 @@ export default function RegisterDataScreen() {
                 label="No. Micro"
                 value={formData.micro_num}
                 keyboardType="numeric"
+                validation={(char: string) => /\d/.test(char)}
+                errorMessage="Solo números"
                 onChangeText={(v: any) => updateForm("micro_num", v)}
               />
               <SmartInput
                 label="Objetivo"
                 value={formData.objective}
                 onChangeText={(v: any) => updateForm("objective", v)}
+                validation={(char: string) =>
+                  /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s\-]$/.test(char)
+                }
+                errorMessage="Solo letras, espacios y guiones"
               />
             </FormRow>
           </>
@@ -617,6 +741,9 @@ export default function RegisterDataScreen() {
         return null;
     }
   };
+
+  // Opciones para el segundo selector según la categoría principal seleccionada
+  const subCategoryOptions = CATEGORY_TREE[selectedMainCategory] || [];
 
   return (
     <SafeAreaView style={tw`flex-1 bg-white`} edges={["top"]}>
@@ -646,15 +773,28 @@ export default function RegisterDataScreen() {
 
         {renderSpecificFields()}
 
-        <FormRow zIndex={30}>
+        {/* Dos selectores encadenados para categoría */}
+        <FormRow zIndex={80}>
           <SmartSelect
             label="Categoría"
-            options={["Escolar", "Juvenil", "Mayores"]}
-            value={formData.category}
-            onSelect={(v: any) => updateForm("category", v)}
-            isOpen={openMenu === "Categoría"}
-            setIsOpen={setOpenMenu}
+            options={Object.keys(CATEGORY_TREE)}
+            value={selectedMainCategory}
+            onSelect={handleMainCategoryChange}
+            isOpen={openMenu === "mainCategory"}
+            setIsOpen={(val: any) => setOpenMenu(val ? "mainCategory" : null)}
           />
+          <SmartSelect
+            label="Subcategoría"
+            options={subCategoryOptions}
+            value={selectedSubCategory}
+            onSelect={handleSubCategoryChange}
+            isOpen={openMenu === "subCategory"}
+            setIsOpen={(val: any) => setOpenMenu(val ? "subCategory" : null)}
+            disabled={!selectedMainCategory}
+          />
+        </FormRow>
+
+        <FormRow zIndex={30}>
           <SmartSelect
             label="Sexo"
             options={["Masculino", "Femenino"]}
@@ -710,7 +850,7 @@ export default function RegisterDataScreen() {
         </View>
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
-            style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-6" : "w-10"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             No
           </Text>
@@ -720,12 +860,12 @@ export default function RegisterDataScreen() {
             Nombre y Apellidos
           </Text>
           <Text
-            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             Posición
           </Text>
           <Text
-            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             Zona
           </Text>
@@ -740,18 +880,18 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`w-6 text-center border border-slate-100 rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
+              style={tw`${isMobile ? "w-6" : "w-10"} text-center border ${!/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"} rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("A", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-1 border border-slate-100 rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
+              style={tw`flex-1 ml-1 border ${!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName) ? "border-red-500" : "border-slate-100"} rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("A", i, "fullName", v)}
             />
-            <View style={tw`w-16 px-0.5`}>
+            <View style={tw`${isMobile ? "w-16" : "w-30"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -775,7 +915,7 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-            <View style={tw`w-16 px-0.5`}>
+            <View style={tw`${isMobile ? "w-16" : "w-24"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -839,7 +979,7 @@ export default function RegisterDataScreen() {
         </View>
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
-            style={tw`w-6 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-6" : "w-10"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             No
           </Text>
@@ -849,12 +989,12 @@ export default function RegisterDataScreen() {
             Nombre y Apellidos
           </Text>
           <Text
-            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             Posición
           </Text>
           <Text
-            style={tw`w-16 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
           >
             Zona
           </Text>
@@ -869,18 +1009,18 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`w-6 text-center border border-slate-100 rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
+              style={tw`${isMobile ? "w-6" : "w-10"} text-center border ${!/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"} rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("B", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-1 border border-slate-100 rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-8"}`}
+              style={tw`flex-1 ml-1 border ${!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName) ? "border-red-500" : "border-slate-100"} rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("B", i, "fullName", v)}
             />
-            <View style={tw`w-16 px-0.5`}>
+            <View style={tw`${isMobile ? "w-16" : "w-30"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -904,7 +1044,7 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-            <View style={tw`w-16 px-0.5`}>
+            <View style={tw`${isMobile ? "w-16" : "w-24"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -941,11 +1081,29 @@ export default function RegisterDataScreen() {
           </View>
         ))}
 
+        {/* Errores de validación */}
+        {playersValidationErrors.length > 0 && (
+          <View style={tw`bg-red-50 border border-red-200 rounded-lg p-3 mt-2`}>
+            <Text style={tw`text-red-700 font-bold text-xs mb-1`}>
+              Errores en jugadores:
+            </Text>
+            <Text style={tw`text-red-600 text-xs mb-2`}>
+              Debe rellenar todos los campos.
+            </Text>
+            {playersValidationErrors.map((err, idx) => (
+              <Text key={idx} style={tw`text-red-600 text-xs`}>
+                {err}
+              </Text>
+            ))}
+          </View>
+        )}
+
         <View style={tw`mt-8 mb-8`}>
           <TouchableOpacity
             onPress={handleStartEvent}
             activeOpacity={0.8}
-            style={tw`bg-[#003366] ${isMobile ? "py-3" : "py-4"} rounded-2xl shadow-lg flex-row justify-center items-center`}
+            disabled={!isFormValid}
+            style={tw`${isFormValid ? "bg-[#003366]" : "bg-slate-400"} ${isMobile ? "py-3" : "py-4"} rounded-2xl shadow-lg flex-row justify-center items-center`}
           >
             <Ionicons
               name="play-circle"

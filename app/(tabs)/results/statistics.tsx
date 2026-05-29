@@ -1,4 +1,5 @@
 // app/(tabs)/results/statistics.tsx
+import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -14,64 +15,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
-import StatsPanel, {
-  CategoryStats,
-} from "../../../components/results/StatsPanel";
-import { useExportStatsPDF } from "../../../hooks/PDF/useExportStatsPDF";
+import StatsPanel from "../../../components/results/StatsPanel";
 import { useAggregatedStats } from "../../../hooks/useAggregatedStats";
+import { useComparative } from "../../../hooks/useComparative";
 import { useStats } from "../../../hooks/useStats";
 import tw from "../../../lib/tailwind";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 import { useMatchStore } from "../../../src/store/useMatchStore";
-
-// ----------------------------------------------------------------
-// Constantes (sin cambios)
-// ----------------------------------------------------------------
-const actionAllowedValues: Record<string, number[]> = {
-  SFC: [0],
-  SR: [0],
-  SME: [0],
-  CI: [0],
-  MC: [0],
-  NAT: [0],
-  CJR: [0],
-  MCA: [0],
-  JFZ: [0],
-  GMD: [0],
-  TI: [0],
-  MER: [0],
-  BTR: [0],
-  Bn: [0, 1, 2, 3],
-  "2ma": [0, 1, 2, 3],
-  Ppm: [0, 1, 2, 3],
-  P2a: [0, 1, 2, 3],
-  P2b: [0, 1, 2, 3],
-  Dd: [0, 1, 2, 3],
-  Dltd: [0, 1, 2, 3],
-  Rca: [4],
-  Ub: [4],
-  Acd: [4],
-  Rdjn: [4],
-  Rdpmp: [4],
-  Rd: [4],
-};
-
-const ALL_SUB_ACTIONS: Record<string, string[]> = {
-  SERVICIO: ["BAJ", "FLO", "SAL", "SAF"],
-  RECEPCION: ["2ma", "Ppm"],
-  ACOMODADA: ["P2a", "P2b"],
-  ATAQUE: ["Rm", "Rca", "Ub", "Tr", "Acd", "Rdjn", "Rdpmp", "Rd"],
-  BLOQUEO: ["Bl", "Bd", "Bn"],
-  DEFENSA: ["Dd", "Dltd", "Ld", "Cc"],
-  ERRORES_SERV: ["SFC", "SR", "SME"],
-  ERRORES_COM: ["CI", "MC"],
-  ERRORES_POS: ["NAT", "CJR", "MCA", "JFZ"],
-  ERRORES_TEC: ["GMD", "TI", "MER", "BTR"],
-};
+import {
+  actionAllowedValues,
+  computeCategoriesAndRadar,
+} from "../../../utils/analytics";
 
 export default function StatisticsScreen() {
   const fetchMatchesFromServer = useMatchStore((s) => s.fetchMatchesFromServer);
-
   useFocusEffect(
     React.useCallback(() => {
       fetchMatchesFromServer();
@@ -82,6 +39,7 @@ export default function StatisticsScreen() {
   const isMobile = width < 1024;
   const savedMatches = useMatchStore((s) => s.savedMatches);
   const user = useAuthStore((s) => s.user);
+  const [showViewStatsModal, setShowViewStatsModal] = useState(false);
 
   // Estados para los filtros
   const [playerName, setPlayerName] = useState<string>("");
@@ -94,10 +52,27 @@ export default function StatisticsScreen() {
   const [micro, setMicro] = useState<string>("");
   const [gender, setGender] = useState<string>("");
 
-  // Nuevos filtros
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [filterDate, setFilterDate] = useState<string>("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Selección de partidos
+  const [selectedMatchIds, setSelectedMatchIds] = useState<Set<string>>(
+    new Set(),
+  );
+  // Mostrar solo partidos seleccionados en la lista
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
+
+  // Hook de comparativa
+  const {
+    set1,
+    showModal,
+    setShowModal,
+    saveSet1,
+    clearSet1,
+    clearComparison,
+    isComparisonMode,
+  } = useComparative();
 
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
@@ -120,7 +95,26 @@ export default function StatisticsScreen() {
     setExpandedRallies((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Aplicar filtro de "Mis partidos" y fecha a la lista base antes de cualquier otro cálculo
+  const toggleMatchSelection = (matchId: string) => {
+    setSelectedMatchIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(matchId)) {
+        newSet.delete(matchId);
+      } else {
+        newSet.add(matchId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllFilteredMatches = () => {
+    const allIds = new Set(filteredMatches.map((m) => m.id));
+    setSelectedMatchIds(allIds);
+  };
+
+  const clearSelection = () => setSelectedMatchIds(new Set());
+
+  // Partidos base
   const baseMatches = useMemo(() => {
     return savedMatches.filter((m) => {
       if (showOnlyMine && user?.email && m.config.createdBy !== user.email)
@@ -145,7 +139,7 @@ export default function StatisticsScreen() {
     gender,
   };
 
-  // 1. Listas base (valores únicos) a partir de los partidos ya filtrados por usuario/fecha
+  // Listas base (valores únicos)
   const allUniqueValues = useMemo(() => {
     const players = new Set<string>();
     const teams = new Set<string>();
@@ -185,7 +179,7 @@ export default function StatisticsScreen() {
     };
   }, [baseMatches]);
 
-  // 2. Listas encadenadas (ahora usan baseMatches)
+  // Listas encadenadas
   const filteredLists = useMemo(() => {
     const matchesFor = (exceptKey: string) =>
       baseMatches.filter((m) => {
@@ -275,112 +269,7 @@ export default function StatisticsScreen() {
     gender,
   ]);
 
-  // 3. Acciones agregadas (usando baseMatches en lugar de savedMatches)
-  const { aggregatedActions } = useAggregatedStats(baseMatches, activeFilters);
-
-  // 4. Estadísticas generales
-  const actionsMappedForStats = aggregatedActions.map((a) => ({
-    ...a,
-    playerId: "any",
-  }));
-  const { getPlayerStats: getGlobalStats } = useStats(
-    [{ actions: actionsMappedForStats }],
-    actionAllowedValues,
-  );
-  const generalStats = getGlobalStats("any");
-
-  // 5. Categorías y radar
-  const { categoriesMap, radarData } = useMemo(() => {
-    const categories: Record<string, CategoryStats> = {};
-    Object.entries(ALL_SUB_ACTIONS).forEach(([cat, subs]) => {
-      categories[cat] = {
-        total: 0,
-        positive: 0,
-        negative: 0,
-        effectiveness: 0,
-        subs: {},
-      };
-      subs.forEach((sub) => {
-        categories[cat].subs[sub] = {
-          total: 0,
-          positive: 0,
-          negative: 0,
-          effectiveness: 0,
-        };
-      });
-    });
-
-    let errorPos = 0,
-      errorNeg = 0,
-      errorTotal = 0;
-
-    aggregatedActions.forEach((action) => {
-      const cat = action.category;
-      const sub = action.subAction;
-      const allowed = actionAllowedValues[sub];
-      const maxVal = allowed ? Math.max(...allowed) : 4;
-      const isPositive = action.value === maxVal;
-      const isNegative = action.value === 0;
-
-      if (!categories[cat])
-        categories[cat] = {
-          total: 0,
-          positive: 0,
-          negative: 0,
-          effectiveness: 0,
-          subs: {},
-        };
-      categories[cat].total++;
-      if (isPositive) categories[cat].positive++;
-      if (isNegative) categories[cat].negative++;
-
-      if (!categories[cat].subs[sub])
-        categories[cat].subs[sub] = {
-          total: 0,
-          positive: 0,
-          negative: 0,
-          effectiveness: 0,
-        };
-      categories[cat].subs[sub].total++;
-      if (isPositive) categories[cat].subs[sub].positive++;
-      if (isNegative) categories[cat].subs[sub].negative++;
-
-      if (cat.startsWith("ERRORES")) {
-        errorTotal++;
-        if (isPositive) errorPos++;
-        if (isNegative) errorNeg++;
-      }
-    });
-
-    Object.values(categories).forEach((catData) => {
-      catData.effectiveness =
-        catData.total > 0
-          ? ((catData.positive - catData.negative) / catData.total) * 100
-          : 0;
-      Object.values(catData.subs).forEach((subData) => {
-        subData.effectiveness =
-          subData.total > 0
-            ? ((subData.positive - subData.negative) / subData.total) * 100
-            : 0;
-      });
-    });
-
-    const errorEff =
-      errorTotal > 0 ? ((errorPos - errorNeg) / errorTotal) * 100 : 0;
-    const radar = [
-      ...Object.entries(categories)
-        .filter(([cat]) => !cat.startsWith("ERRORES"))
-        .map(([cat, data]) => ({
-          label: cat.substring(0, 4),
-          value: Math.max(0, data.effectiveness),
-        })),
-      { label: "Errores", value: Math.max(0, errorEff) },
-    ];
-
-    return { categoriesMap: categories, radarData: radar };
-  }, [aggregatedActions]);
-
-  // Partidos que cumplen todos los filtros (para la lista expandible)
+  // Partidos que cumplen todos los filtros
   const filteredMatches = useMemo(() => {
     return baseMatches.filter((m) => {
       if (denomination && m.config.denomination !== denomination) return false;
@@ -416,16 +305,97 @@ export default function StatisticsScreen() {
     });
   }, [baseMatches, activeFilters]);
 
-  const matchesPlayed = filteredMatches.length;
+  // Partidos a mostrar en la lista (todos o solo seleccionados)
+  const displayedMatches = useMemo(() => {
+    return showOnlySelected
+      ? filteredMatches.filter((m) => selectedMatchIds.has(m.id))
+      : filteredMatches;
+  }, [filteredMatches, selectedMatchIds, showOnlySelected]);
 
-  // Hook de exportación a PDF
-  const { handleExportPDF } = useExportStatsPDF({
-    playerName,
-    teamName,
-    matchesPlayed,
-    generalStats,
-    categoriesMap,
-  });
+  // Partidos seleccionados para estadísticas
+  const selectedMatches = useMemo(() => {
+    return filteredMatches.filter((m) => selectedMatchIds.has(m.id));
+  }, [filteredMatches, selectedMatchIds]);
+
+  // Acciones agregadas de los partidos seleccionados
+  const { aggregatedActions } = useAggregatedStats(
+    selectedMatches,
+    activeFilters,
+  );
+
+  // Estadísticas generales
+  const actionsMappedForStats = aggregatedActions.map((a) => ({
+    ...a,
+    playerId: "any",
+  }));
+  const { getPlayerStats: getGlobalStats } = useStats(
+    [{ actions: actionsMappedForStats }],
+    actionAllowedValues,
+  );
+  const generalStats = getGlobalStats("any");
+
+  // Categorías y radar
+  const { categoriesMap, radarData } = useMemo(
+    () => computeCategoriesAndRadar(aggregatedActions),
+    [aggregatedActions],
+  );
+
+  const matchesPlayed = selectedMatches.length;
+
+  // Guardar conjunto actual
+  const handleSaveSet1 = () => {
+    if (selectedMatches.length === 0) return;
+    saveSet1(activeFilters, selectedMatchIds);
+    setPlayerName("");
+    setTeamName("");
+    setDenomination("");
+    setCategory("");
+    setEventType("");
+    setPlace("");
+    setMeso("");
+    setMicro("");
+    setGender("");
+    setSelectedMatchIds(new Set());
+    setShowOnlySelected(false);
+  };
+
+  // Editar conjunto 1
+  const handleEditSet1 = () => {
+    if (!set1) return;
+    const { filters, matchIds } = set1;
+    setPlayerName(filters.playerName);
+    setTeamName(filters.teamName);
+    setDenomination(filters.denomination);
+    setCategory(filters.category);
+    setEventType(filters.eventType);
+    setPlace(filters.place);
+    setMeso(filters.meso);
+    setMicro(filters.micro);
+    setGender(filters.gender);
+    setSelectedMatchIds(new Set(matchIds));
+    clearSet1();
+  };
+
+  // Ir a comparación
+  const handleGoToComparison = () => {
+    if (!set1 || selectedMatches.length === 0) return;
+    setShowModal(false);
+    router.push({
+      pathname: "/(tabs)/results/comparative",
+      params: {
+        set1Data: JSON.stringify({
+          filters: set1.filters,
+          matchIds: set1.matchIds,
+        }),
+        set2Data: JSON.stringify({
+          filters: activeFilters,
+          matchIds: Array.from(selectedMatchIds),
+        }),
+      },
+    });
+  };
+
+  const hasActiveFilter = playerName !== "" || teamName !== "";
 
   // Modal de selección
   const SelectionModal = ({
@@ -517,12 +487,10 @@ export default function StatisticsScreen() {
     </TouchableOpacity>
   );
 
-  const hasActiveFilter = playerName !== "" || teamName !== "";
-
   return (
     <SafeAreaView style={tw`flex-1 bg-white`}>
       <HeaderMenu
-        title="Estadísticas Agregadas"
+        title="Estadísticas Avanzadas"
         dark={false}
         showQuickNav={false}
         onBack={() => router.replace("/(tabs)/menu")}
@@ -616,6 +584,28 @@ export default function StatisticsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Aviso de conjunto 1 guardado */}
+        {isComparisonMode && (
+          <View
+            style={tw`bg-green-50 border border-green-200 rounded-xl p-3 mb-4`}
+          >
+            <Text style={tw`text-green-800 font-bold text-sm`}>
+              Conjunto 1 guardado correctamente.
+            </Text>
+            <Text style={tw`text-green-700 text-xs mt-1`}>
+              Ahora selecciona los filtros y partidos para el segundo conjunto.
+            </Text>
+            <TouchableOpacity
+              onPress={clearComparison}
+              style={tw`mt-2 self-end`}
+            >
+              <Text style={tw`text-red-500 text-xs font-bold`}>
+                Cancelar comparativa
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Filtros */}
         <View
@@ -718,7 +708,7 @@ export default function StatisticsScreen() {
               <Text
                 style={tw`text-blue-300 ${isMobile ? "text-[8px]" : "text-xs"} mb-3`}
               >
-                Basado en {matchesPlayed} partido(s)
+                Basado en {matchesPlayed} partido(s) seleccionado(s)
               </Text>
               <View
                 style={tw`flex-row justify-between border-t border-blue-800/50 pt-3`}
@@ -762,6 +752,20 @@ export default function StatisticsScreen() {
               </View>
             </View>
 
+            {selectedMatches.length === 0 && (
+              <View
+                style={tw`bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4`}
+              >
+                <Text style={tw`text-yellow-700 text-sm font-bold`}>
+                  No has seleccionado ningún partido.
+                </Text>
+                <Text style={tw`text-yellow-600 text-xs mt-1`}>
+                  Marca los partidos en la lista de abajo para calcular las
+                  estadísticas.
+                </Text>
+              </View>
+            )}
+
             {aggregatedActions.length > 0 ? (
               <View
                 style={tw`bg-white border border-slate-100 rounded-2xl p-2 shadow-sm`}
@@ -773,24 +777,57 @@ export default function StatisticsScreen() {
                   radarSize={isMobile ? 160 : 220}
                 />
               </View>
-            ) : (
+            ) : selectedMatches.length > 0 ? (
               <Text
                 style={tw`text-center text-slate-400 py-10 ${isMobile ? "text-xs" : "text-base"}`}
               >
-                No se registraron acciones para este filtro.
+                No se registraron acciones para los partidos seleccionados.
               </Text>
-            )}
+            ) : null}
 
-            {/* Lista de partidos relevantes */}
-            {filteredMatches.length > 0 && (
+            {/* Lista de partidos con toggle "Ver seleccionados" */}
+            {displayedMatches.length > 0 && (
               <View style={tw`mt-6`}>
-                <Text
-                  style={tw`text-lg font-black text-slate-400 uppercase mb-3`}
-                >
-                  Partidos ({filteredMatches.length})
-                </Text>
-                {filteredMatches.map((match) => {
+                <View style={tw`flex-row justify-between items-center mb-3`}>
+                  <Text style={tw`text-lg font-black text-slate-400 uppercase`}>
+                    Partidos ({displayedMatches.length})
+                  </Text>
+                  <View style={tw`flex-row gap-2`}>
+                    {!showOnlySelected && (
+                      <>
+                        <TouchableOpacity
+                          onPress={selectAllFilteredMatches}
+                          style={tw`bg-slate-200 px-3 py-1 rounded-full`}
+                        >
+                          <Text style={tw`text-xs font-bold text-slate-600`}>
+                            Seleccionar todos
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={clearSelection}
+                          style={tw`bg-slate-200 px-3 py-1 rounded-full`}
+                        >
+                          <Text style={tw`text-xs font-bold text-slate-600`}>
+                            Limpiar
+                          </Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => setShowOnlySelected(!showOnlySelected)}
+                      style={tw`${showOnlySelected ? "bg-green-600" : "bg-green-200"} px-3 py-1 rounded-full`}
+                    >
+                      <Text
+                        style={tw`text-xs font-bold ${showOnlySelected ? "text-white" : "text-green-800"}`}
+                      >
+                        {showOnlySelected ? "Ver todos" : "Ver seleccionados"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                {displayedMatches.map((match) => {
                   const isExpanded = expandedMatchId === match.id;
+                  const isSelected = selectedMatchIds.has(match.id);
                   const matchPlayerId = playerName
                     ? (() => {
                         const playerA = match.config.teamA.players.find(
@@ -819,179 +856,317 @@ export default function StatisticsScreen() {
 
                   return (
                     <View key={match.id} style={tw`mb-2`}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setExpandedMatchId(isExpanded ? null : match.id)
-                        }
-                        style={tw`flex-row justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200`}
-                      >
-                        <View style={tw`flex-1`}>
-                          <Text style={tw`font-bold text-[#003366] text-sm`}>
-                            {match.config.tournament ||
-                              match.config.denomination ||
-                              "Partido"}
-                          </Text>
-                          <Text style={tw`text-xs text-slate-500`}>
-                            {match.config.teamA.name} vs{" "}
-                            {match.config.teamB.name} · Set{" "}
-                            {match.score.currentSet}
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name={isExpanded ? "chevron-up" : "chevron-down"}
-                          size={18}
-                          color="#003366"
-                        />
-                      </TouchableOpacity>
-                      {isExpanded && (
-                        <View
-                          style={tw`bg-white p-3 rounded-xl border border-slate-200 mt-1`}
+                      <View style={tw`flex-row items-center`}>
+                        <TouchableOpacity
+                          onPress={() => toggleMatchSelection(match.id)}
+                          style={tw`mr-2`}
                         >
-                          {match.history.map((set) => {
-                            const setKey = `${match.id}-set-${set.set}`;
-                            const isSetExpanded = expandedSets[setKey];
-                            const winner = setWinners[set.set];
-                            return (
-                              <View key={set.set} style={tw`mb-3`}>
-                                <TouchableOpacity
-                                  onPress={() =>
-                                    toggleSetExpanded(match.id, set.set)
-                                  }
-                                  style={tw`flex-row justify-between items-center bg-slate-100 p-2 rounded-lg`}
-                                >
-                                  <View style={tw`flex-row items-center gap-2`}>
-                                    <Text
-                                      style={tw`text-sm font-bold text-[#003366]`}
+                          <Ionicons
+                            name={isSelected ? "checkbox" : "square-outline"}
+                            size={20}
+                            color={isSelected ? "#003366" : "#94a3b8"}
+                          />
+                        </TouchableOpacity>
+
+                        <View style={tw`flex-1`}>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setExpandedMatchId(isExpanded ? null : match.id)
+                            }
+                            style={tw`flex-row justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200`}
+                          >
+                            <View style={tw`flex-1`}>
+                              <Text
+                                style={tw`font-bold text-[#003366] text-sm`}
+                              >
+                                {match.config.tournament ||
+                                  match.config.denomination ||
+                                  "Partido"}
+                              </Text>
+                              <Text style={tw`text-xs text-slate-500`}>
+                                {match.config.teamA.name} vs{" "}
+                                {match.config.teamB.name} · Set{" "}
+                                {match.score.currentSet}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name={isExpanded ? "chevron-up" : "chevron-down"}
+                              size={18}
+                              color="#003366"
+                            />
+                          </TouchableOpacity>
+                          {isExpanded && (
+                            <View
+                              style={tw`bg-white p-3 rounded-xl border border-slate-200 mt-1`}
+                            >
+                              {match.history.map((set) => {
+                                const setKey = `${match.id}-set-${set.set}`;
+                                const isSetExpanded = expandedSets[setKey];
+                                const winner = setWinners[set.set];
+                                return (
+                                  <View key={set.set} style={tw`mb-3`}>
+                                    <TouchableOpacity
+                                      onPress={() =>
+                                        toggleSetExpanded(match.id, set.set)
+                                      }
+                                      style={tw`flex-row justify-between items-center bg-slate-100 p-2 rounded-lg`}
                                     >
-                                      Set {set.set}
-                                    </Text>
-                                    {winner && (
-                                      <Text
-                                        style={tw`text-xs font-bold ${winner === "A" ? "text-blue-600" : "text-red-600"}`}
+                                      <View
+                                        style={tw`flex-row items-center gap-2`}
                                       >
-                                        {winner === "A" ? "Gana A" : "Gana B"}
-                                      </Text>
-                                    )}
-                                  </View>
-                                  <Ionicons
-                                    name={
-                                      isSetExpanded
-                                        ? "chevron-up"
-                                        : "chevron-down"
-                                    }
-                                    size={16}
-                                    color="#003366"
-                                  />
-                                </TouchableOpacity>
-                                {isSetExpanded && (
-                                  <View style={tw`mt-2`}>
-                                    {set.rallies.length === 0 ? (
-                                      <Text style={tw`text-xs text-slate-400`}>
-                                        Sin rallies registrados
-                                      </Text>
-                                    ) : (
-                                      set.rallies.map((rally, idx) => {
-                                        const rallyKey = `${match.id}-set-${set.set}-rally-${idx}`;
-                                        const isRallyExpanded =
-                                          expandedRallies[rallyKey];
-                                        return (
-                                          <View key={idx} style={tw`mb-2`}>
-                                            <TouchableOpacity
-                                              onPress={() =>
-                                                toggleRallyExpanded(
-                                                  match.id,
-                                                  set.set,
-                                                  idx,
-                                                )
-                                              }
-                                              style={tw`flex-row justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100`}
-                                            >
-                                              <View
-                                                style={tw`flex-row items-center gap-2`}
-                                              >
-                                                <Text
-                                                  style={tw`text-xs font-bold text-slate-600`}
+                                        <Text
+                                          style={tw`text-sm font-bold text-[#003366]`}
+                                        >
+                                          Set {set.set}
+                                        </Text>
+                                        {winner && (
+                                          <Text
+                                            style={tw`text-xs font-bold ${winner === "A" ? "text-blue-600" : "text-red-600"}`}
+                                          >
+                                            {winner === "A"
+                                              ? "Gana A"
+                                              : "Gana B"}
+                                          </Text>
+                                        )}
+                                      </View>
+                                      <Ionicons
+                                        name={
+                                          isSetExpanded
+                                            ? "chevron-up"
+                                            : "chevron-down"
+                                        }
+                                        size={16}
+                                        color="#003366"
+                                      />
+                                    </TouchableOpacity>
+                                    {isSetExpanded && (
+                                      <View style={tw`mt-2`}>
+                                        {set.rallies.length === 0 ? (
+                                          <Text
+                                            style={tw`text-xs text-slate-400`}
+                                          >
+                                            Sin rallies registrados
+                                          </Text>
+                                        ) : (
+                                          set.rallies.map((rally, idx) => {
+                                            const rallyKey = `${match.id}-set-${set.set}-rally-${idx}`;
+                                            const isRallyExpanded =
+                                              expandedRallies[rallyKey];
+                                            return (
+                                              <View key={idx} style={tw`mb-2`}>
+                                                <TouchableOpacity
+                                                  onPress={() =>
+                                                    toggleRallyExpanded(
+                                                      match.id,
+                                                      set.set,
+                                                      idx,
+                                                    )
+                                                  }
+                                                  style={tw`flex-row justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100`}
                                                 >
-                                                  Rally {idx + 1}
-                                                </Text>
-                                                <Text
-                                                  style={tw`text-xs text-slate-500`}
-                                                >
-                                                  {rally.scoreAtTheTime.A}-
-                                                  {rally.scoreAtTheTime.B}
-                                                </Text>
-                                              </View>
-                                              <Ionicons
-                                                name={
-                                                  isRallyExpanded
-                                                    ? "chevron-up"
-                                                    : "chevron-down"
-                                                }
-                                                size={14}
-                                                color="#94a3b8"
-                                              />
-                                            </TouchableOpacity>
-                                            {isRallyExpanded && (
-                                              <View style={tw`mt-1 ml-2`}>
-                                                {rally.actions.map(
-                                                  (action, aIdx) => {
-                                                    const isHighlighted =
-                                                      (playerName &&
-                                                        action.playerId ===
-                                                          matchPlayerId) ||
-                                                      (teamName &&
-                                                        teamPrefix &&
-                                                        action.playerId.startsWith(
-                                                          teamPrefix,
-                                                        ));
-                                                    return (
-                                                      <Text
-                                                        key={aIdx}
-                                                        style={tw`text-xs py-0.5 px-1 rounded ${isHighlighted ? "bg-blue-100 text-blue-900 font-bold" : "text-slate-700"}`}
-                                                      >
-                                                        {action.playerId} →{" "}
-                                                        {action.category}/
-                                                        {action.subAction}{" "}
-                                                        {action.value !==
-                                                        undefined
-                                                          ? `(${action.value})`
-                                                          : ""}{" "}
-                                                        {action.origin &&
-                                                          `desde ${action.origin} hacia ${action.destination}`}
-                                                      </Text>
-                                                    );
-                                                  },
+                                                  <View
+                                                    style={tw`flex-row items-center gap-2`}
+                                                  >
+                                                    <Text
+                                                      style={tw`text-xs font-bold text-slate-600`}
+                                                    >
+                                                      Rally {idx + 1}
+                                                    </Text>
+                                                    <Text
+                                                      style={tw`text-xs text-slate-500`}
+                                                    >
+                                                      {rally.scoreAtTheTime.A}-
+                                                      {rally.scoreAtTheTime.B}
+                                                    </Text>
+                                                  </View>
+                                                  <Ionicons
+                                                    name={
+                                                      isRallyExpanded
+                                                        ? "chevron-up"
+                                                        : "chevron-down"
+                                                    }
+                                                    size={14}
+                                                    color="#94a3b8"
+                                                  />
+                                                </TouchableOpacity>
+                                                {isRallyExpanded && (
+                                                  <View style={tw`mt-1 ml-2`}>
+                                                    {rally.actions.map(
+                                                      (action, aIdx) => {
+                                                        const isHighlighted =
+                                                          (playerName &&
+                                                            action.playerId ===
+                                                              matchPlayerId) ||
+                                                          (teamName &&
+                                                            teamPrefix &&
+                                                            action.playerId.startsWith(
+                                                              teamPrefix,
+                                                            ));
+                                                        return (
+                                                          <Text
+                                                            key={aIdx}
+                                                            style={tw`text-xs py-0.5 px-1 rounded ${isHighlighted ? "bg-blue-100 text-blue-900 font-bold" : "text-slate-700"}`}
+                                                          >
+                                                            {action.playerId} →{" "}
+                                                            {action.category}/
+                                                            {action.subAction}{" "}
+                                                            {action.value !==
+                                                            undefined
+                                                              ? `(${action.value})`
+                                                              : ""}{" "}
+                                                            {action.origin &&
+                                                              `desde ${action.origin} hacia ${action.destination}`}
+                                                          </Text>
+                                                        );
+                                                      },
+                                                    )}
+                                                  </View>
                                                 )}
                                               </View>
-                                            )}
-                                          </View>
-                                        );
-                                      })
+                                            );
+                                          })
+                                        )}
+                                      </View>
                                     )}
                                   </View>
-                                )}
-                              </View>
-                            );
-                          })}
+                                );
+                              })}
+                            </View>
+                          )}
                         </View>
-                      )}
+                      </View>
                     </View>
                   );
                 })}
               </View>
             )}
 
-            {/* Botón Exportar PDF */}
-            <TouchableOpacity
-              onPress={handleExportPDF}
-              style={tw`flex-row items-center justify-center bg-red-600 ${isMobile ? "py-2 px-3" : "py-3 px-5"} rounded-xl mt-6 self-end`}
-            >
-              <Ionicons name="document-outline" size={18} color="white" />
-              <Text style={tw`text-white font-bold ml-2`}>Exportar a PDF</Text>
-            </TouchableOpacity>
+            {/* Botones de acción */}
+            <View style={tw`flex-row justify-end gap-3 mt-6`}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedMatches.length === 0) return;
+                  setShowViewStatsModal(true);
+                }}
+                disabled={selectedMatches.length === 0 || isComparisonMode} // ← añadir isComparisonMode
+                style={tw`flex-row items-center justify-center bg-green-600 ${isMobile ? "py-2 px-3" : "py-3 px-5"} rounded-xl ${
+                  selectedMatches.length === 0 || isComparisonMode
+                    ? "opacity-50"
+                    : ""
+                }`}
+              >
+                <Ionicons name="eye-outline" size={18} color="white" />
+                <Text style={tw`text-white font-bold ml-2`}>
+                  Ver estadísticas
+                </Text>
+              </TouchableOpacity>
+              {isComparisonMode ? (
+                <TouchableOpacity
+                  onPress={() => setShowModal(true)}
+                  disabled={selectedMatches.length === 0}
+                  style={tw`flex-row items-center justify-center bg-blue-600 ${isMobile ? "py-2 px-3" : "py-3 px-5"} rounded-xl ${selectedMatches.length === 0 ? "opacity-50" : ""}`}
+                >
+                  <Ionicons
+                    name="git-compare-outline"
+                    size={18}
+                    color="white"
+                  />
+                  <Text style={tw`text-white font-bold ml-2`}>
+                    Comparar conjuntos
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleSaveSet1}
+                  disabled={selectedMatches.length === 0}
+                  style={tw`flex-row items-center justify-center bg-blue-600 ${isMobile ? "py-2 px-3" : "py-3 px-5"} rounded-xl ${selectedMatches.length === 0 ? "opacity-50" : ""}`}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color="white" />
+                  <Text style={tw`text-white font-bold ml-2`}>
+                    Guardar conjunto actual
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
       </ScrollView>
+
+      {/* Modal de comparación */}
+      <CustomModal
+        visible={showViewStatsModal}
+        title="Ver estadísticas"
+        message="¿Desea ver las estadísticas detalladas de todos los partidos seleccionados?"
+        type="info"
+        onConfirm={() => {
+          setShowViewStatsModal(false);
+          router.push({
+            pathname: "/(tabs)/results/selected-stats",
+            params: {
+              filters: JSON.stringify(activeFilters),
+              matchIds: JSON.stringify(Array.from(selectedMatchIds)),
+            },
+          });
+        }}
+        onCancel={() => setShowViewStatsModal(false)}
+        confirmText="Ver"
+        cancelText="Cancelar"
+      />
+      <Modal visible={showModal} transparent animationType="fade">
+        <View style={tw`flex-1 justify-center items-center bg-black/60 p-4`}>
+          <View style={tw`bg-white rounded-2xl w-full max-w-lg p-5`}>
+            <Text
+              style={tw`text-xl font-black text-[#003366] mb-4 text-center`}
+            >
+              Comparativa de estadísticas
+            </Text>
+            <View style={tw`flex-row justify-between mb-6`}>
+              <View style={tw`flex-1 bg-slate-50 rounded-xl p-3 mr-2`}>
+                <Text style={tw`text-sm font-bold text-slate-700 mb-2`}>
+                  Conjunto 1
+                </Text>
+                <Text style={tw`text-xs text-slate-500`}>
+                  {set1?.matchIds.length ?? 0} partido(s)
+                </Text>
+              </View>
+              <View style={tw`flex-1 bg-slate-50 rounded-xl p-3 ml-2`}>
+                <Text style={tw`text-sm font-bold text-slate-700 mb-2`}>
+                  Conjunto 2
+                </Text>
+                <Text style={tw`text-xs text-slate-500`}>
+                  {selectedMatches.length} partido(s)
+                </Text>
+              </View>
+            </View>
+            <View style={tw`flex-row justify-center gap-3`}>
+              <TouchableOpacity
+                onPress={handleEditSet1}
+                style={tw`bg-yellow-500 px-4 py-2 rounded-xl`}
+              >
+                <Text style={tw`text-white font-bold text-xs`}>
+                  Editar Conjunto 1
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowModal(false)}
+                style={tw`bg-slate-400 px-4 py-2 rounded-xl`}
+              >
+                <Text style={tw`text-white font-bold text-xs`}>
+                  Editar Conjunto 2
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleGoToComparison}
+                style={tw`bg-[#003366] px-4 py-2 rounded-xl`}
+              >
+                <Text style={tw`text-white font-bold text-xs`}>
+                  Ir a comparación
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modales de selección */}
       {modalVisible === "player" && (

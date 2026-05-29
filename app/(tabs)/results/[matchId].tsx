@@ -8,12 +8,12 @@ import HeaderMenu from "../../../components/HeaderMenu";
 import StatsPanel, {
   CategoryStats,
 } from "../../../components/results/StatsPanel";
-import { useExportMatchPDF } from "../../../hooks/PDF/useExportMatchPDF";
 import tw from "../../../lib/tailwind";
 import {
   useMatchStore,
   type RallyAction,
 } from "../../../src/store/useMatchStore";
+import { useExportMatchPDF } from "../../../utils/exportPDF";
 
 // Constantes (sin cambios)
 const actionAllowedValues: Record<string, number[]> = {

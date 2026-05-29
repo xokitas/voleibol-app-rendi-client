@@ -1,14 +1,15 @@
 // app/(tabs)/login/index.tsx
+import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import tw from "../../../lib/tailwind"; // ajusta la ruta si es necesario
@@ -18,15 +19,22 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [modalError, setModalError] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: "", message: "" });
 
   const loginAction = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
 
   const handleLogin = async () => {
-    setError("");
     if (!email.trim() || !password.trim()) {
-      setError("Por favor, completa todos los campos.");
+      setModalError({
+        visible: true,
+        title: "Campos incompletos",
+        message: "Por favor, completa todos los campos.",
+      });
       return;
     }
 
@@ -34,7 +42,11 @@ export default function LoginScreen() {
       await loginAction(email, password);
       router.back(); // vuelve a la pantalla anterior
     } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión");
+      setModalError({
+        visible: true,
+        title: "Error de inicio de sesión",
+        message: err.message || "Credenciales incorrectas.",
+      });
     }
   };
 
@@ -85,14 +97,11 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Mensaje de error */}
-        {error !== "" && (
-          <Text style={tw`text-red-500 text-sm mb-4 text-center`}>{error}</Text>
-        )}
-
         {/* Botón de inicio de sesión */}
         <TouchableOpacity
-          style={tw`bg-[#003366] py-4 rounded-xl items-center mb-6 ${isLoading ? "opacity-70" : ""}`}
+          style={tw`bg-[#003366] py-4 rounded-xl items-center mb-6 ${
+            isLoading ? "opacity-70" : ""
+          }`}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -113,6 +122,22 @@ export default function LoginScreen() {
           conexión.
         </Text>
       </KeyboardAvoidingView>
+
+      {/* Modal de error personalizado */}
+      <CustomModal
+        visible={modalError.visible}
+        title={modalError.title}
+        message={modalError.message}
+        type="danger"
+        onConfirm={() =>
+          setModalError({ visible: false, title: "", message: "" })
+        }
+        onCancel={() =>
+          setModalError({ visible: false, title: "", message: "" })
+        }
+        confirmText="Entendido"
+        cancelText="Cerrar"
+      />
     </SafeAreaView>
   );
 }
