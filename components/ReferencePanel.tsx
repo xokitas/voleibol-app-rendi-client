@@ -114,7 +114,7 @@ export default function ReferencePanel({
               {
                 step: "1",
                 title: "JUGADOR",
-                desc: "Selecciona al protagonista en la cancha táctica.",
+                desc: "Selecciona al protagonista en la cancha. Atajo: teclas 1,2,3,4.",
               },
               {
                 step: "2",
