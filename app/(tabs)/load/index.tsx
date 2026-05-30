@@ -251,6 +251,11 @@ export default function LoadMatchScreen() {
           renderItem={({ item }) => {
             const platform = item.config.platform || "web";
             const platformColor = platform === "web" ? "#003366" : "#16a34a";
+            // Determina si el botón de eliminar debe mostrarse
+            const canDelete = user?.email
+              ? item.config.createdBy === user.email
+              : true;
+
             return (
               <View
                 style={tw`bg-slate-50 ${
@@ -316,16 +321,18 @@ export default function LoadMatchScreen() {
                         Reanudar
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeletePress(item.id)}
-                      style={tw`border border-red-300 ${isMobile ? "px-2 py-1.5" : "px-3 py-2"} rounded-lg`}
-                    >
-                      <Text
-                        style={tw`text-red-500 ${isMobile ? "text-[10px]" : "text-xs"} font-bold`}
+                    {canDelete && (
+                      <TouchableOpacity
+                        onPress={() => handleDeletePress(item.id)}
+                        style={tw`border border-red-300 ${isMobile ? "px-2 py-1.5" : "px-3 py-2"} rounded-lg`}
                       >
-                        Eliminar
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={tw`text-red-500 ${isMobile ? "text-[10px]" : "text-xs"} font-bold`}
+                        >
+                          Eliminar
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
