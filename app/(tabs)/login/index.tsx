@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import tw from "../../../lib/tailwind"; // ajusta la ruta si es necesario
+import tw from "../../../lib/tailwind";
 import { useAuthStore } from "../../../src/store/useAuthStore";
 
 export default function LoginScreen() {
@@ -28,6 +28,32 @@ export default function LoginScreen() {
   const loginAction = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
 
+  // Función para traducir mensajes de error técnicos a lenguaje de usuario
+  const traducirError = (mensaje: string): string => {
+    const msg = mensaje.toLowerCase();
+    if (
+      msg.includes("fetch") ||
+      msg.includes("network") ||
+      msg.includes("timeout")
+    ) {
+      return "No se pudo conectar con el servidor. Comprueba tu conexión a internet e inténtalo de nuevo.";
+    }
+    if (
+      msg.includes("401") ||
+      msg.includes("credenciales") ||
+      msg.includes("incorrect")
+    ) {
+      return "Correo electrónico o contraseña incorrectos. Vuelve a intentarlo.";
+    }
+    if (msg.includes("500") || msg.includes("server")) {
+      return "El servidor está experimentando problemas. Inténtalo más tarde.";
+    }
+    // Si el mensaje ya está en español, lo devolvemos tal cual
+    if (/[áéíóúñ]/i.test(mensaje)) return mensaje;
+    // Fallback genérico
+    return "Ha ocurrido un error inesperado. Inténtalo de nuevo más tarde.";
+  };
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       setModalError({
@@ -40,12 +66,13 @@ export default function LoginScreen() {
 
     try {
       await loginAction(email, password);
-      router.back(); // vuelve a la pantalla anterior
+      router.back();
     } catch (err: any) {
+      const mensajeOriginal = err.message || "Error desconocido";
       setModalError({
         visible: true,
         title: "Error de inicio de sesión",
-        message: err.message || "Credenciales incorrectas.",
+        message: traducirError(mensajeOriginal),
       });
     }
   };
