@@ -1,4 +1,5 @@
 // app/(tabs)/results/index.tsx
+import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -31,12 +32,19 @@ export default function ResultsScreen() {
   const isMobile = width < 1024;
 
   const savedMatches = useMatchStore((s) => s.savedMatches);
+  const deleteMatch = useMatchStore((s) => s.deleteMatch);
   const user = useAuthStore((s) => s.user);
 
   // Filtros
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [filterDate, setFilterDate] = useState<string>("");
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Modal de confirmación para eliminar
+  const [deleteModal, setDeleteModal] = useState<{
+    visible: boolean;
+    matchId: string;
+  }>({ visible: false, matchId: "" });
 
   const finishedMatches = useMemo(() => {
     return savedMatches.filter((m) => {
@@ -73,6 +81,17 @@ export default function ResultsScreen() {
       pathname: "/(tabs)/results/[matchId]",
       params: { matchId: match.id },
     });
+  };
+
+  const handleDeletePress = (matchId: string) => {
+    setDeleteModal({ visible: true, matchId });
+  };
+
+  const confirmDelete = () => {
+    if (deleteModal.matchId) {
+      deleteMatch(deleteModal.matchId);
+    }
+    setDeleteModal({ visible: false, matchId: "" });
   };
 
   return (
@@ -208,11 +227,28 @@ export default function ResultsScreen() {
                   {formatDate(item.config.date)}
                 </Text>
               </View>
-              <Ionicons
-                name="eye-outline"
-                size={isMobile ? 18 : 20}
-                color="#003366"
-              />
+              <View style={tw`flex-row items-center`}>
+                <Ionicons
+                  name="eye-outline"
+                  size={isMobile ? 18 : 20}
+                  color="#003366"
+                />
+                {/* Botón de eliminar solo para el creador del partido */}
+                {(user?.email
+                  ? item.config.createdBy === user.email
+                  : true) && (
+                  <TouchableOpacity
+                    onPress={() => handleDeletePress(item.id)}
+                    style={tw`ml-3`}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={isMobile ? 18 : 20}
+                      color="#EF4444"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
@@ -224,6 +260,18 @@ export default function ResultsScreen() {
           }
         />
       </View>
+
+      {/* Modal de confirmación para eliminar */}
+      <CustomModal
+        visible={deleteModal.visible}
+        title="Eliminar partido"
+        message="¿Estás seguro de que quieres borrar este partido finalizado? Esta acción no se puede deshacer."
+        type="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteModal({ visible: false, matchId: "" })}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </SafeAreaView>
   );
 }
