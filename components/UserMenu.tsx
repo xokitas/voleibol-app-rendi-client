@@ -21,6 +21,11 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
   const borderColor = dark ? "border-slate-700" : "border-slate-200";
   const iconColor = dark ? "#FFFFFF" : "#003366";
 
+  // Colores para el botón cuando está autenticado
+  const authBgColor = isAuthenticated ? "bg-green-600" : bgColor;
+  const authIconColor = isAuthenticated ? "#FFFFFF" : iconColor;
+  const authBorderColor = isAuthenticated ? "border-green-700" : borderColor;
+
   const handleLoginPress = () => {
     setIsVisible(false);
     router.push("/login");
@@ -38,13 +43,23 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
         <TouchableOpacity
           onPress={() => setIsVisible(true)}
           activeOpacity={0.7}
-          style={tw`flex-row items-center ${bgColor} p-2 px-3 rounded-xl border ${borderColor} shadow-sm`}
+          style={tw`flex-row items-center ${authBgColor} p-2 px-3 rounded-xl border ${authBorderColor} shadow-sm`}
         >
-          <Ionicons name="person-circle-outline" size={24} color={iconColor} />
+          <Ionicons
+            name={isAuthenticated ? "person-circle" : "person-circle-outline"}
+            size={24}
+            color={authIconColor}
+          />
+          {/* Punto indicador de sesión activa */}
+          {isAuthenticated && (
+            <View
+              style={tw`absolute top-1 right-1 w-2.5 h-2.5 bg-green-400 rounded-full border border-white`}
+            />
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* Panel modal */}
+      {/* Panel modal (sin cambios en el interior) */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -53,7 +68,6 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
       >
         <View style={styles.modalOverlay}>
           <SafeAreaView style={styles.menuPanel}>
-            {/* Cabecera */}
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>Mi Perfil</Text>
               <TouchableOpacity onPress={() => setIsVisible(false)}>
@@ -61,7 +75,6 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
               </TouchableOpacity>
             </View>
 
-            {/* Contenido principal */}
             <View style={styles.menuContent}>
               {isAuthenticated ? (
                 <>
@@ -107,7 +120,6 @@ export default function UserMenu({ dark = false, size = 24 }: UserMenuProps) {
               )}
             </View>
 
-            {/* Versión al pie */}
             <Text style={styles.versionText}>RENDI v1.0.0</Text>
           </SafeAreaView>
         </View>

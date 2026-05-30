@@ -19,16 +19,20 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Modal de error
   const [modalError, setModalError] = useState<{
     visible: boolean;
     title: string;
     message: string;
   }>({ visible: false, title: "", message: "" });
 
+  // Modal de éxito
+  const [successModal, setSuccessModal] = useState(false);
+
   const loginAction = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
 
-  // Función para traducir mensajes de error técnicos a lenguaje de usuario
   const traducirError = (mensaje: string): string => {
     const msg = mensaje.toLowerCase();
     if (
@@ -48,9 +52,7 @@ export default function LoginScreen() {
     if (msg.includes("500") || msg.includes("server")) {
       return "El servidor está experimentando problemas. Inténtalo más tarde.";
     }
-    // Si el mensaje ya está en español, lo devolvemos tal cual
     if (/[áéíóúñ]/i.test(mensaje)) return mensaje;
-    // Fallback genérico
     return "Ha ocurrido un error inesperado. Inténtalo de nuevo más tarde.";
   };
 
@@ -66,7 +68,8 @@ export default function LoginScreen() {
 
     try {
       await loginAction(email, password);
-      router.back();
+      // Mostrar modal de éxito en lugar de volver directamente
+      setSuccessModal(true);
     } catch (err: any) {
       const mensajeOriginal = err.message || "Error desconocido";
       setModalError({
@@ -164,6 +167,23 @@ export default function LoginScreen() {
         }
         confirmText="Entendido"
         cancelText="Cerrar"
+      />
+
+      {/* Modal de éxito */}
+      <CustomModal
+        visible={successModal}
+        title="¡Inicio de sesión exitoso!"
+        message="Has iniciado sesión correctamente. Tus datos se respaldarán en el servidor."
+        type="info"
+        onConfirm={() => {
+          setSuccessModal(false);
+          router.back();
+        }}
+        onCancel={() => {
+          setSuccessModal(false);
+          router.back();
+        }}
+        confirmText="Continuar"
       />
     </SafeAreaView>
   );
