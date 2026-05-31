@@ -3,7 +3,7 @@ import CustomModal from "@/components/CustomModal";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -32,9 +32,27 @@ export default function StatisticsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       fetchMatchesFromServer();
+      if (!isFirstFocus.current) {
+        // Limpiar todos los filtros y selección
+        setPlayerName("");
+        setTeamName("");
+        setDenomination("");
+        setCategory("");
+        setEventType("");
+        setPlace("");
+        setMeso("");
+        setMicro("");
+        setGender("");
+        setSelectedMatchIds(new Set());
+        setShowOnlySelected(false);
+        // Si hay comparativa activa, cancelarla
+        if (isComparisonMode) clearComparison();
+      }
+      isFirstFocus.current = false;
     }, []),
   );
   const router = useRouter();
+  const isFirstFocus = useRef(true);
   const { width } = useWindowDimensions();
   const isMobile = width < 1024;
   const savedMatches = useMatchStore((s) => s.savedMatches);

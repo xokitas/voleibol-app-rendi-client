@@ -5,8 +5,8 @@ import type { MatchRules } from "@/src/store/useMatchStore";
 import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -387,6 +387,7 @@ export default function RegisterDataScreen() {
   const [playersB, setPlayersB] = useState(
     initialPlayers.map((p) => ({ ...p })),
   );
+  const isFirstFocus = useRef(true);
 
   // REGLAS Y MODAL
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -410,30 +411,33 @@ export default function RegisterDataScreen() {
     useState<string>("Juvenil 16-18 años");
 
   // Limpiar formulario al entrar
-  useEffect(() => {
-    setFormData({
-      denomination: "",
-      place: "",
-      category: "Nacional Juvenil 16-18 años",
-      sex: "Masculino",
-      date: new Date(),
-      start_time: new Date(),
-      objective: "",
-      meso: "Entrante",
-      micro: "Ordinario",
-      micro_num: "1",
-      week_day: "Lunes",
-    });
-    setTeamA("Equipo A");
-    setTeamB("Equipo B");
-    setPlayersA(initialPlayers.map((p) => ({ ...p })));
-    setPlayersB(initialPlayers.map((p) => ({ ...p })));
-    setSelectedMainCategory("Nacionales");
-    setSelectedSubCategory("Juvenil 16-18 años");
-    if (currentMatch) {
-      setShowExistingGameModal(true);
-    }
-  }, [type]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isFirstFocus.current) {
+        // Limpiar formulario
+        setFormData({
+          denomination: "",
+          place: "",
+          category: "Nacional Juvenil 16-18 años",
+          sex: "Masculino",
+          date: new Date(),
+          start_time: new Date(),
+          objective: "",
+          meso: "Entrante",
+          micro: "Ordinario",
+          micro_num: "1",
+          week_day: "Lunes",
+        });
+        setTeamA("Equipo A");
+        setTeamB("Equipo B");
+        setPlayersA(initialPlayers.map((p) => ({ ...p })));
+        setPlayersB(initialPlayers.map((p) => ({ ...p })));
+        setSelectedMainCategory("Nacionales");
+        setSelectedSubCategory("Juvenil 16-18 años");
+      }
+      isFirstFocus.current = false;
+    }, []),
+  );
 
   const updateForm = (key: string, value: any) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
