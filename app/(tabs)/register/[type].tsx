@@ -5,8 +5,8 @@ import type { MatchRules } from "@/src/store/useMatchStore";
 import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -180,7 +180,7 @@ const SmartSelect = ({
       : "text-sm";
 
   return (
-    <View style={{ flex: 1, zIndex: 100 }}>
+    <View style={{ flex: 1 }}>
       <TouchableOpacity
         onPress={() => !disabled && setIsOpen(!isOpen ? label || value : null)}
         activeOpacity={disabled ? 1 : 0.8}
@@ -387,6 +387,7 @@ export default function RegisterDataScreen() {
   const [playersB, setPlayersB] = useState(
     initialPlayers.map((p) => ({ ...p })),
   );
+  const isFirstFocus = useRef(true);
 
   // REGLAS Y MODAL
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -410,29 +411,55 @@ export default function RegisterDataScreen() {
     useState<string>("Juvenil 16-18 años");
 
   // Limpiar formulario al entrar
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isFirstFocus.current) {
+        // Limpiar formulario
+        setFormData({
+          denomination: "",
+          place: "",
+          category: "Nacional Juvenil 16-18 años",
+          sex: "Masculino",
+          date: new Date(),
+          start_time: new Date(),
+          objective: "",
+          meso: "Entrante",
+          micro: "Ordinario",
+          micro_num: "1",
+          week_day: "Lunes",
+        });
+        setTeamA("Equipo A");
+        setTeamB("Equipo B");
+        setPlayersA(initialPlayers.map((p) => ({ ...p })));
+        setPlayersB(initialPlayers.map((p) => ({ ...p })));
+        setSelectedMainCategory("Nacionales");
+        setSelectedSubCategory("Juvenil 16-18 años");
+      }
+      // Restaurar reglas oficiales siempre, sin importar si es la primera vez
+      setRules({
+        pointsToWinSet: 21,
+        pointsToWinLastSet: 15,
+        minDifference: 2,
+        maxSets: 3,
+        switchIntervalNormal: 7,
+        switchIntervalLast: 5,
+        hasTimeLimit: false,
+      });
+      isFirstFocus.current = false;
+    }, []),
+  );
+
+  // Reiniciar reglas al cambiar tipo de partido
   useEffect(() => {
-    setFormData({
-      denomination: "",
-      place: "",
-      category: "Nacional Juvenil 16-18 años",
-      sex: "Masculino",
-      date: new Date(),
-      start_time: new Date(),
-      objective: "",
-      meso: "Entrante",
-      micro: "Ordinario",
-      micro_num: "1",
-      week_day: "Lunes",
+    setRules({
+      pointsToWinSet: 21,
+      pointsToWinLastSet: 15,
+      minDifference: 2,
+      maxSets: 3,
+      switchIntervalNormal: 7,
+      switchIntervalLast: 5,
+      hasTimeLimit: false,
     });
-    setTeamA("Equipo A");
-    setTeamB("Equipo B");
-    setPlayersA(initialPlayers.map((p) => ({ ...p })));
-    setPlayersB(initialPlayers.map((p) => ({ ...p })));
-    setSelectedMainCategory("Nacionales");
-    setSelectedSubCategory("Juvenil 16-18 años");
-    if (currentMatch) {
-      setShowExistingGameModal(true);
-    }
   }, [type]);
 
   const updateForm = (key: string, value: any) =>
@@ -774,7 +801,7 @@ export default function RegisterDataScreen() {
         {renderSpecificFields()}
 
         {/* Dos selectores encadenados para categoría */}
-        <FormRow zIndex={80}>
+        <FormRow zIndex={50}>
           <SmartSelect
             label="Categoría"
             options={Object.keys(CATEGORY_TREE)}

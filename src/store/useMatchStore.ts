@@ -101,12 +101,13 @@ export interface MatchStore {
   finishRally: (winner: "A" | "B") => void;
   clearCurrentRally: () => void;
 
+  updateCurrentMatchTimes: (totalTime: number, realTime: number) => void; // ← nueva acción
   saveCurrentMatch: (status: "partial" | "finished") => void;
   loadMatch: (matchId: string) => void;
   deleteMatch: (matchId: string) => void;
 
   syncMatchToServer: (match: Match) => Promise<void>;
-  fetchMatchesFromServer: () => Promise<void>; // ← nueva acción
+  fetchMatchesFromServer: () => Promise<void>;
 }
 
 // ----------------------------------------------------------------
@@ -144,8 +145,9 @@ const refreshAccessToken = async (): Promise<boolean> => {
 export const useMatchStore = create<MatchStore>()(
   persist(
     (set, get) => ({
-      currentMatch: null,
-      savedMatches: [],
+      // --- Estado inicial ---
+      currentMatch: null as Match | null,
+      savedMatches: [] as Match[],
 
       // --- Configuración ---
       setInitialMatchData: (config) => {
@@ -369,10 +371,29 @@ export const useMatchStore = create<MatchStore>()(
           };
         }),
 
+      // --- Actualizar tiempos del partido ---
+      updateCurrentMatchTimes: (totalTime, realTime) =>
+        set((state) => {
+          if (!state.currentMatch) return state;
+          return {
+            currentMatch: {
+              ...state.currentMatch,
+              totalTimeSeconds: totalTime,
+              realTimeSeconds: realTime,
+            },
+          };
+        }),
+
       // --- Gestión de partidos guardados ---
       saveCurrentMatch: (status) =>
         set((state) => {
           if (!state.currentMatch) return state;
+          // Evitar guardar si ya existe un partido con el mismo id (doble clic)
+          const alreadySaved = state.savedMatches.some(
+            (m) => m.id === state.currentMatch!.id,
+          );
+          if (alreadySaved) return state;
+
           const matchToSave: Match = {
             ...state.currentMatch,
             status,
@@ -479,9 +500,14 @@ export const useMatchStore = create<MatchStore>()(
           realTimeSeconds: m.realTimeSeconds,
         }));
 
-        const newMatches = remoteMatches.filter(
-          (rm) => !localSaved.some((lm) => lm.serverId === rm.serverId),
-        );
+        // Filtrar duplicados comparando serverId y también id local cuando no hay serverId
+        const newMatches = remoteMatches.filter((rm) => {
+          return !localSaved.some((lm) => {
+            if (lm.serverId && lm.serverId === rm.serverId) return true;
+            if (!lm.serverId && lm.id === rm.id) return true; // mismo id local
+            return false;
+          });
+        });
 
         if (newMatches.length > 0) {
           set((state) => ({

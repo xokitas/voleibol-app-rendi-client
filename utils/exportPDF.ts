@@ -219,6 +219,7 @@ export async function exportMatchToPDF(
   teamAggregatedStats: { A: any; B: any },
   formatDate: (iso: string) => string,
   getWinner: () => string,
+  categoriesMap?: Record<string, CategoryStats>, // ← NUEVO
 ) {
   const actionsHtml = match.history
     .map(
@@ -251,6 +252,55 @@ export async function exportMatchToPDF(
     )
     .join("");
 
+  // Bloque de estadísticas (solo si se proporciona categoriesMap)
+  let statisticsHtml = "";
+  if (categoriesMap) {
+    statisticsHtml = `
+      <h2>Estadísticas del Partido</h2>
+      <h3>Desglose por Categorías</h3>
+      <table>
+        <tr><th>Categoría</th><th>Total</th><th>Positivas</th><th>Negativas</th><th>Efectividad</th></tr>
+        ${Object.entries(categoriesMap)
+          .map(
+            ([cat, data]) => `
+          <tr>
+            <td>${cat}</td>
+            <td>${data.total}</td>
+            <td>${data.positive}</td>
+            <td>${data.negative}</td>
+            <td>${data.effectiveness.toFixed(1)}%</td>
+          </tr>
+        `,
+          )
+          .join("")}
+      </table>
+      <h3>Desglose de Subacciones</h3>
+      ${Object.entries(categoriesMap)
+        .map(
+          ([cat, data]) => `
+        <h3>${cat}</h3>
+        <table>
+          <tr><th>Subacción</th><th>Total</th><th>Positivas</th><th>Negativas</th><th>Efectividad</th></tr>
+          ${Object.entries(data.subs)
+            .map(
+              ([sub, subData]) => `
+            <tr>
+              <td>${sub}</td>
+              <td>${subData.total}</td>
+              <td>${subData.positive}</td>
+              <td>${subData.negative}</td>
+              <td>${subData.effectiveness.toFixed(1)}%</td>
+            </tr>
+          `,
+            )
+            .join("")}
+        </table>
+      `,
+        )
+        .join("")}
+    `;
+  }
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -268,7 +318,6 @@ export async function exportMatchToPDF(
           th { background-color: #f8fafc; font-weight: bold; }
           .header-info { text-align: center; margin-bottom: 30px; font-size: 14px; }
           
-          /* Reglas para paginación en PDF */
           @media print {
             .page-break { page-break-before: always; }
             table { page-break-inside: auto; }
@@ -311,6 +360,8 @@ export async function exportMatchToPDF(
             .join("")}
         </table>
 
+        ${statisticsHtml}   <!-- Estadísticas del partido -->
+
         <div class="page-break"></div>
         
         <h2>Desarrollo del Partido (Historial de Acciones)</h2>
@@ -333,6 +384,7 @@ export const useExportMatchPDF = (params: any) => {
       teamAggregatedStats,
       formatDate,
       getWinner,
+      categoriesMap, // ← NUEVO
     } = params;
     await exportMatchToPDF(
       match,
@@ -342,6 +394,7 @@ export const useExportMatchPDF = (params: any) => {
       teamAggregatedStats,
       formatDate,
       getWinner,
+      categoriesMap, // ← NUEVO
     );
   };
   return { handleExportPDF };
