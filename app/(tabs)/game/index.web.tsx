@@ -143,6 +143,9 @@ const MiniStatBox = ({
 export default function GameScreenWeb() {
   const router = useRouter();
   const currentMatch = useMatchStore((s) => s.currentMatch);
+  const updateCurrentMatchTimes = useMatchStore(
+    (s) => s.updateCurrentMatchTimes,
+  );
   const saveCurrentMatch = useMatchStore((s) => s.saveCurrentMatch);
   const clearCurrentMatch = useMatchStore((s) => s.clearCurrentMatch);
   const eventData = currentMatch?.config;
@@ -456,10 +459,7 @@ export default function GameScreenWeb() {
       "¿Guardar el parcial actual?",
       "warning",
       () => {
-        if (currentMatch) {
-          currentMatch.totalTimeSeconds = timers.totalTime;
-          currentMatch.realTimeSeconds = timers.realTime;
-        }
+        updateCurrentMatchTimes(timers.totalTime, timers.realTime);
         saveCurrentMatch("partial");
         timers.stopRealTime();
         timers.stopTotalTime();
@@ -473,10 +473,7 @@ export default function GameScreenWeb() {
       "¿Finalizar definitivamente?",
       "danger",
       () => {
-        if (currentMatch) {
-          currentMatch.totalTimeSeconds = timers.totalTime;
-          currentMatch.realTimeSeconds = timers.realTime;
-        }
+        updateCurrentMatchTimes(timers.totalTime, timers.realTime);
         saveCurrentMatch("finished");
         timers.stopRealTime();
         timers.stopTotalTime();

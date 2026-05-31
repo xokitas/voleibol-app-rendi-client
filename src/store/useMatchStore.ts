@@ -101,12 +101,13 @@ export interface MatchStore {
   finishRally: (winner: "A" | "B") => void;
   clearCurrentRally: () => void;
 
+  updateCurrentMatchTimes: (totalTime: number, realTime: number) => void; // ← nueva acción
   saveCurrentMatch: (status: "partial" | "finished") => void;
   loadMatch: (matchId: string) => void;
   deleteMatch: (matchId: string) => void;
 
   syncMatchToServer: (match: Match) => Promise<void>;
-  fetchMatchesFromServer: () => Promise<void>; // ← nueva acción
+  fetchMatchesFromServer: () => Promise<void>;
 }
 
 // ----------------------------------------------------------------
@@ -144,8 +145,9 @@ const refreshAccessToken = async (): Promise<boolean> => {
 export const useMatchStore = create<MatchStore>()(
   persist(
     (set, get) => ({
-      currentMatch: null,
-      savedMatches: [],
+      // --- Estado inicial ---
+      currentMatch: null as Match | null,
+      savedMatches: [] as Match[],
 
       // --- Configuración ---
       setInitialMatchData: (config) => {
@@ -365,6 +367,19 @@ export const useMatchStore = create<MatchStore>()(
               history: history.map((h) =>
                 h.set === setEntry!.set ? { ...h, rallies } : h,
               ),
+            },
+          };
+        }),
+
+      // --- Actualizar tiempos del partido ---
+      updateCurrentMatchTimes: (totalTime, realTime) =>
+        set((state) => {
+          if (!state.currentMatch) return state;
+          return {
+            currentMatch: {
+              ...state.currentMatch,
+              totalTimeSeconds: totalTime,
+              realTimeSeconds: realTime,
             },
           };
         }),
