@@ -6,7 +6,7 @@ import { useMatchStore } from "@/src/store/useMatchStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Platform,
   ScrollView,
@@ -180,7 +180,7 @@ const SmartSelect = ({
       : "text-sm";
 
   return (
-    <View style={{ flex: 1, zIndex: 100 }}>
+    <View style={{ flex: 1 }}>
       <TouchableOpacity
         onPress={() => !disabled && setIsOpen(!isOpen ? label || value : null)}
         activeOpacity={disabled ? 1 : 0.8}
@@ -435,9 +435,32 @@ export default function RegisterDataScreen() {
         setSelectedMainCategory("Nacionales");
         setSelectedSubCategory("Juvenil 16-18 años");
       }
+      // Restaurar reglas oficiales siempre, sin importar si es la primera vez
+      setRules({
+        pointsToWinSet: 21,
+        pointsToWinLastSet: 15,
+        minDifference: 2,
+        maxSets: 3,
+        switchIntervalNormal: 7,
+        switchIntervalLast: 5,
+        hasTimeLimit: false,
+      });
       isFirstFocus.current = false;
     }, []),
   );
+
+  // Reiniciar reglas al cambiar tipo de partido
+  useEffect(() => {
+    setRules({
+      pointsToWinSet: 21,
+      pointsToWinLastSet: 15,
+      minDifference: 2,
+      maxSets: 3,
+      switchIntervalNormal: 7,
+      switchIntervalLast: 5,
+      hasTimeLimit: false,
+    });
+  }, [type]);
 
   const updateForm = (key: string, value: any) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -778,7 +801,7 @@ export default function RegisterDataScreen() {
         {renderSpecificFields()}
 
         {/* Dos selectores encadenados para categoría */}
-        <FormRow zIndex={80}>
+        <FormRow zIndex={50}>
           <SmartSelect
             label="Categoría"
             options={Object.keys(CATEGORY_TREE)}

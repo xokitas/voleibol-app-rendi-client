@@ -388,6 +388,12 @@ export const useMatchStore = create<MatchStore>()(
       saveCurrentMatch: (status) =>
         set((state) => {
           if (!state.currentMatch) return state;
+          // Evitar guardar si ya existe un partido con el mismo id (doble clic)
+          const alreadySaved = state.savedMatches.some(
+            (m) => m.id === state.currentMatch!.id,
+          );
+          if (alreadySaved) return state;
+
           const matchToSave: Match = {
             ...state.currentMatch,
             status,
@@ -494,9 +500,14 @@ export const useMatchStore = create<MatchStore>()(
           realTimeSeconds: m.realTimeSeconds,
         }));
 
-        const newMatches = remoteMatches.filter(
-          (rm) => !localSaved.some((lm) => lm.serverId === rm.serverId),
-        );
+        // Filtrar duplicados comparando serverId y también id local cuando no hay serverId
+        const newMatches = remoteMatches.filter((rm) => {
+          return !localSaved.some((lm) => {
+            if (lm.serverId && lm.serverId === rm.serverId) return true;
+            if (!lm.serverId && lm.id === rm.id) return true; // mismo id local
+            return false;
+          });
+        });
 
         if (newMatches.length > 0) {
           set((state) => ({

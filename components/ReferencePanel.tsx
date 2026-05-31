@@ -131,6 +131,11 @@ export default function ReferencePanel({
                 title: "TRAYECTORIA",
                 desc: "Marca posición de salida y destino en el campo.",
               },
+              {
+                step: "5",
+                title: "GUARDAR",
+                desc: "Finaliza el rally y asigna el punto. Atajo: Ctrl+S.",
+              },
             ].map((item) => (
               <View key={item.step} style={tw`mb-6 flex-row items-start`}>
                 <Text style={tw`text-2xl font-black text-slate-800 mr-4`}>

@@ -13,6 +13,16 @@ export const useGameTimers = (
   const totalStartTimeRef = useRef<number>(Date.now() - initialTotal * 1000);
   const realIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 🔄 Reiniciar todo cuando cambian los tiempos iniciales (nuevo partido)
+  useEffect(() => {
+    setTotalTime(initialTotal);
+    setRealTime(initialReal);
+    setIsTotalTimeActive(false);
+    setIsRealTimeActive(false);
+    setHasStartedOnce(initialTotal > 0);
+    totalStartTimeRef.current = Date.now() - initialTotal * 1000;
+  }, [initialTotal, initialReal]);
+
   const startTotalTime = () => {
     if (!isTotalTimeActive) {
       totalStartTimeRef.current = Date.now() - totalTime * 1000;

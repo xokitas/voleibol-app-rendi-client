@@ -13,7 +13,7 @@ import tw from "../../../lib/tailwind";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 
 // ==========================================
-// 1. CONFIGURACIÓN Y CONSTANTES (sin cambios)
+// 1. CONFIGURACIÓN Y CONSTANTES
 // ==========================================
 
 const categoryColors: Record<string, string> = {
@@ -80,7 +80,7 @@ const zoneCoords: Record<string, { x: number; y: number }> = {
 };
 
 // ==========================================
-// 2. COMPONENTES AUXILIARES (sin cambios)
+// 2. COMPONENTES AUXILIARES
 // ==========================================
 
 const CourtZone = ({
@@ -153,7 +153,6 @@ export default function GameScreenWeb() {
     eventData?.eventType === "entrenamiento" ||
     eventData?.eventType === "Entrenamiento";
 
-  // Redirigir si no hay partido cargado
   useEffect(() => {
     if (!currentMatch) router.replace("/(tabs)/menu");
   }, [currentMatch]);
@@ -224,7 +223,6 @@ export default function GameScreenWeb() {
   const [selectionStep, setSelectionStep] = useState(0);
   const [origin, setOrigin] = useState<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
-  const [blink, setBlink] = useState(false);
   const { getPlayerStats } = useStats(rallyHistory || [], actionAllowedValues);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isEditingMode, setIsEditingMode] = useState(false);
@@ -237,11 +235,6 @@ export default function GameScreenWeb() {
     team: "A" | "B";
     index: number;
   } | null>(null);
-
-  // Estado para la ruta pendiente de QuickNav
-  const [pendingQuickNavRoute, setPendingQuickNavRoute] = useState<
-    string | null
-  >(null);
 
   const handleMouseMove = useCallback((e: any) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -262,13 +255,28 @@ export default function GameScreenWeb() {
   }, []);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (mustSwitchSide) interval = setInterval(() => setBlink((b) => !b), 500);
-    else setBlink(false);
-    return () => clearInterval(interval);
+    return () => {
+      timers.stopRealTime();
+      timers.stopTotalTime();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mustSwitchSide) {
+      showModal(
+        "Cambio de campo",
+        "Los equipos deben cambiar de lado.",
+        "info",
+        () => {
+          hideModal();
+          toggleWind();
+        },
+        undefined,
+        "Aceptar",
+      );
+    }
   }, [mustSwitchSide]);
 
-  // Fin de set (modal informativo)
   useEffect(() => {
     if (currentSet > 1) {
       timers.stopRealTime();
@@ -286,7 +294,6 @@ export default function GameScreenWeb() {
     }
   }, [currentSet]);
 
-  // Fin de partido (modal informativo + guardado automático)
   useEffect(() => {
     if (sets.A === 2 || sets.B === 2) {
       timers.stopRealTime();
@@ -305,12 +312,10 @@ export default function GameScreenWeb() {
     }
   }, [sets.A, sets.B]);
 
-  // Pausa automática en cada punto
   useEffect(() => {
     if (score.A > 0 || score.B > 0) timers.stopRealTime();
   }, [score.A, score.B]);
 
-  // Iniciar/reanudar cronómetros automáticamente al comenzar una nueva acción
   useEffect(() => {
     if (pendingAction && !isEditingAction && !timers.isRealTimeActive) {
       timers.startRealTime();
@@ -321,29 +326,34 @@ export default function GameScreenWeb() {
     }
   }, [pendingAction, isEditingAction]);
 
-  // Teclado numérico mejorado con selección rápida de jugadores (1‑4)
+  // Teclado numérico (1‑4) para seleccionar jugadores activos
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Solo si NO hay una acción pendiente, las teclas 1‑4 seleccionan jugador
       if (!pendingAction && ["1", "2", "3", "4"].includes(e.key)) {
         const index = parseInt(e.key) - 1;
         const playersA = eventData?.teamA?.players || [];
         const playersB = eventData?.teamB?.players || [];
         let targetPlayerId: string | null = null;
-        if (index === 0 && playersA.length > 0)
-          targetPlayerId = `A-${playersA[0].number}`;
-        else if (index === 1 && playersA.length > 1)
-          targetPlayerId = `A-${playersA[1].number}`;
-        else if (index === 2 && playersB.length > 0)
-          targetPlayerId = `B-${playersB[0].number}`;
-        else if (index === 3 && playersB.length > 1)
-          targetPlayerId = `B-${playersB[1].number}`;
+
+        if (index === 0 && activePlayersA.length > 0) {
+          const player = playersA[activePlayersA[0]];
+          if (player) targetPlayerId = `A-${player.number}`;
+        } else if (index === 1 && activePlayersA.length > 1) {
+          const player = playersA[activePlayersA[1]];
+          if (player) targetPlayerId = `A-${player.number}`;
+        } else if (index === 2 && activePlayersB.length > 0) {
+          const player = playersB[activePlayersB[0]];
+          if (player) targetPlayerId = `B-${player.number}`;
+        } else if (index === 3 && activePlayersB.length > 1) {
+          const player = playersB[activePlayersB[1]];
+          if (player) targetPlayerId = `B-${player.number}`;
+        }
+
         if (targetPlayerId) handlePlayerSelect(targetPlayerId);
         else playErrorBuzzer();
         return;
       }
 
-      // Asignación de valor (0‑4) cuando hay acción pendiente y valor sin definir
       if (pendingAction && pendingAction.value === undefined) {
         let val: number | null = null;
         if (e.key === "`" || e.key === "0" || e.key === "º") val = 0;
@@ -361,7 +371,14 @@ export default function GameScreenWeb() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingAction, confirmActionValue, handlePlayerSelect, eventData]);
+  }, [
+    pendingAction,
+    confirmActionValue,
+    handlePlayerSelect,
+    eventData,
+    activePlayersA,
+    activePlayersB,
+  ]);
 
   const formatTicketZone = (z?: string) => {
     if (!z) return "z?";
@@ -424,7 +441,7 @@ export default function GameScreenWeb() {
         teamOfAction === "A" ? nameB : nameA,
       );
     }
-    timers.startTotalTime(); // asegurar que el cronómetro total nunca se detenga
+    timers.startTotalTime();
   };
 
   const handleExit = () =>
@@ -432,16 +449,15 @@ export default function GameScreenWeb() {
       "Salir del partido",
       "Elige qué hacer con el partido actual:",
       "warning",
-      // onConfirm: Guardar y salir → mantiene el partido en curso (no guarda, no borra)
       () => {
         if (currentMatch) {
           currentMatch.totalTimeSeconds = timers.totalTime;
           currentMatch.realTimeSeconds = timers.realTime;
         }
         timers.stopRealTime();
+        timers.stopTotalTime();
         router.replace("/(tabs)/menu");
       },
-      // onSecondary: Salir sin guardar → descarta el partido completamente
       () => {
         clearRally();
         clearCurrentMatch();
@@ -481,7 +497,7 @@ export default function GameScreenWeb() {
       },
     );
 
-  // Renderizado de columnas (sin bloqueo, solo resaltado)
+  // Renderizado de columnas de acciones
   const renderActionColumn = (
     title: string,
     category: string,
@@ -567,7 +583,6 @@ export default function GameScreenWeb() {
     }
   };
 
-  // Funciones auxiliares para índices de jugadores
   const playersAOriginalIndex = (player: any) =>
     eventData?.teamA?.players?.findIndex(
       (p: any) => p.number === player.number,
@@ -603,10 +618,7 @@ export default function GameScreenWeb() {
           <View style={tw`flex-1 flex-col`}>
             {/* Marcador superior */}
             <View
-              style={[
-                tw`h-44 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300`,
-                blink ? tw`bg-red-900` : tw`bg-slate-950`,
-              ]}
+              style={tw`h-44 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300 bg-slate-950`}
             >
               {/* Equipo A */}
               <View
@@ -642,49 +654,45 @@ export default function GameScreenWeb() {
                   </View>
                 </View>
                 <View style={tw`flex-col gap-5`}>
-                  {eventData?.teamA?.players
-                    ?.filter((_: any, i: number) => activePlayersA.includes(i))
-                    .map((player: any, indexInActive: number) => {
-                      const originalIndex = activePlayersA[indexInActive];
-                      const playerId = player.number
-                        ? `A-${player.number}`
-                        : `A-${originalIndex}`;
-                      const isSelected = selectedPlayerId === playerId;
-                      return (
-                        <View
-                          key={`playerA-${originalIndex}`}
-                          style={tw`flex-row items-center`}
+                  {activePlayersA.map((playerIndex, slotIndex) => {
+                    const player = eventData?.teamA?.players[playerIndex];
+                    if (!player) return null;
+                    const playerId = player.number
+                      ? `A-${player.number}`
+                      : `A-${playerIndex}`;
+                    const isSelected = selectedPlayerId === playerId;
+                    return (
+                      <View
+                        key={`playerA-${slotIndex}`}
+                        style={tw`flex-row items-center`}
+                      >
+                        <TouchableOpacity
+                          onPress={() => handlePlayerSelect(playerId)}
+                          style={tw`px-3 py-2.5 rounded-lg border-l-4 ${isSelected ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-blue-900 shadow-md"}`}
                         >
-                          <TouchableOpacity
-                            onPress={() => handlePlayerSelect(playerId)}
-                            style={tw`px-3 py-2.5 rounded-lg border-l-4 ${isSelected ? "bg-blue-600 border-blue-400" : "bg-slate-800 border-blue-900 shadow-md"}`}
+                          <Text
+                            style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-blue-200"}`}
                           >
-                            <Text
-                              style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-blue-200"}`}
-                            >
-                              #{player.number} {player.fullName || "Jugador"}
-                            </Text>
+                            #{player.number} {player.fullName || "Jugador"}
+                          </Text>
+                        </TouchableOpacity>
+                        {isTraining && (
+                          <TouchableOpacity
+                            onPress={() =>
+                              setShowSubModal({ team: "A", index: slotIndex })
+                            }
+                            style={tw`ml-2 p-1 rounded bg-slate-700`}
+                          >
+                            <Ionicons
+                              name="swap-horizontal"
+                              size={14}
+                              color="#94a3b8"
+                            />
                           </TouchableOpacity>
-                          {isTraining && (
-                            <TouchableOpacity
-                              onPress={() =>
-                                setShowSubModal({
-                                  team: "A",
-                                  index: indexInActive,
-                                })
-                              }
-                              style={tw`ml-2 p-1 rounded bg-slate-700`}
-                            >
-                              <Ionicons
-                                name="swap-horizontal"
-                                size={14}
-                                color="#94a3b8"
-                              />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      );
-                    })}
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -721,49 +729,45 @@ export default function GameScreenWeb() {
               {/* Equipo B */}
               <View style={tw`flex-1 flex-row items-center justify-end gap-8`}>
                 <View style={tw`flex-col gap-5`}>
-                  {eventData?.teamB?.players
-                    ?.filter((_: any, i: number) => activePlayersB.includes(i))
-                    .map((player: any, indexInActive: number) => {
-                      const originalIndex = activePlayersB[indexInActive];
-                      const playerId = player.number
-                        ? `B-${player.number}`
-                        : `B-${originalIndex}`;
-                      const isSelected = selectedPlayerId === playerId;
-                      return (
-                        <View
-                          key={`playerB-${originalIndex}`}
-                          style={tw`flex-row items-center`}
+                  {activePlayersB.map((playerIndex, slotIndex) => {
+                    const player = eventData?.teamB?.players[playerIndex];
+                    if (!player) return null;
+                    const playerId = player.number
+                      ? `B-${player.number}`
+                      : `B-${playerIndex}`;
+                    const isSelected = selectedPlayerId === playerId;
+                    return (
+                      <View
+                        key={`playerB-${slotIndex}`}
+                        style={tw`flex-row items-center`}
+                      >
+                        <TouchableOpacity
+                          onPress={() => handlePlayerSelect(playerId)}
+                          style={tw`px-3 py-2.5 rounded-lg border-r-4 ${isSelected ? "bg-red-600 border-red-400" : "bg-slate-800 border-red-900 shadow-md"}`}
                         >
-                          <TouchableOpacity
-                            onPress={() => handlePlayerSelect(playerId)}
-                            style={tw`px-3 py-2.5 rounded-lg border-r-4 ${isSelected ? "bg-red-600 border-red-400" : "bg-slate-800 border-red-900 shadow-md"}`}
+                          <Text
+                            style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-red-200"}`}
                           >
-                            <Text
-                              style={tw`text-[10px] font-black uppercase ${isSelected ? "text-white" : "text-red-200"}`}
-                            >
-                              #{player.number} {player.fullName || "Jugador"}
-                            </Text>
+                            #{player.number} {player.fullName || "Jugador"}
+                          </Text>
+                        </TouchableOpacity>
+                        {isTraining && (
+                          <TouchableOpacity
+                            onPress={() =>
+                              setShowSubModal({ team: "B", index: slotIndex })
+                            }
+                            style={tw`ml-2 p-1 rounded bg-slate-700`}
+                          >
+                            <Ionicons
+                              name="swap-horizontal"
+                              size={14}
+                              color="#94a3b8"
+                            />
                           </TouchableOpacity>
-                          {isTraining && (
-                            <TouchableOpacity
-                              onPress={() =>
-                                setShowSubModal({
-                                  team: "B",
-                                  index: indexInActive,
-                                })
-                              }
-                              style={tw`ml-2 p-1 rounded bg-slate-700`}
-                            >
-                              <Ionicons
-                                name="swap-horizontal"
-                                size={14}
-                                color="#94a3b8"
-                              />
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      );
-                    })}
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
                 <View style={tw`items-center`}>
                   <Text style={tw`text-slate-100 font-black text-2xl mb-1`}>
@@ -797,7 +801,7 @@ export default function GameScreenWeb() {
               </View>
             </View>
 
-            {/* Sección central (cancha + columnas + estadísticas) */}
+            {/* Sección central: cancha + columnas + estadísticas */}
             <View
               style={tw`flex-1 flex-row items-center px-4 gap-4 overflow-hidden`}
             >
@@ -1394,7 +1398,6 @@ export default function GameScreenWeb() {
             <Text style={tw`text-white font-black text-lg mb-4`}>
               Sustituir jugador
             </Text>
-            {/* Mostrar todos los jugadores registrados */}
             {[
               ...(eventData?.teamA?.players || []).map((p: any) => ({
                 ...p,
@@ -1407,7 +1410,6 @@ export default function GameScreenWeb() {
             ].map((player, idx) => {
               const team = player.team;
               const playerNumber = player.number;
-              const playerId = `${team}-${playerNumber}`;
               const isActive =
                 (team === "A" &&
                   activePlayersA.includes(playersAOriginalIndex(player))) ||
@@ -1430,7 +1432,6 @@ export default function GameScreenWeb() {
                     if (selectedIndex === -1) return;
 
                     if (targetTeam === team) {
-                      // Sustitución dentro del mismo equipo
                       if (targetTeam === "A") {
                         setActivePlayersA((prev) =>
                           prev.map((i) => (i === index ? selectedIndex : i)),
@@ -1441,7 +1442,7 @@ export default function GameScreenWeb() {
                         );
                       }
                     } else {
-                      // Intercambio entre equipos
+                      // Intercambio entre equipos (se mantiene igual)
                       if (targetTeam === "A") {
                         setActivePlayersA((prev) => {
                           const newA = [...prev];
@@ -1450,17 +1451,13 @@ export default function GameScreenWeb() {
                           setActivePlayersB((prevB) => {
                             const newB = [...prevB];
                             const idxInB = newB.indexOf(selectedIndex);
-                            if (idxInB !== -1) {
-                              newB[idxInB] = temp;
-                            } else {
-                              if (index < newB.length) newB[index] = temp;
-                            }
+                            if (idxInB !== -1) newB[idxInB] = temp;
+                            else if (index < newB.length) newB[index] = temp;
                             return newB;
                           });
                           return newA;
                         });
                       } else {
-                        // targetTeam === "B"
                         setActivePlayersB((prev) => {
                           const newB = [...prev];
                           const temp = newB[index]!;
@@ -1468,11 +1465,8 @@ export default function GameScreenWeb() {
                           setActivePlayersA((prevA) => {
                             const newA = [...prevA];
                             const idxInA = newA.indexOf(selectedIndex);
-                            if (idxInA !== -1) {
-                              newA[idxInA] = temp;
-                            } else {
-                              if (index < newA.length) newA[index] = temp;
-                            }
+                            if (idxInA !== -1) newA[idxInA] = temp;
+                            else if (index < newA.length) newA[index] = temp;
                             return newA;
                           });
                           return newB;

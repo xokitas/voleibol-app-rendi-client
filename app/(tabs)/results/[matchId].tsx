@@ -13,6 +13,7 @@ import {
   useMatchStore,
   type RallyAction,
 } from "../../../src/store/useMatchStore";
+import { computeCategoriesAndRadar } from "../../../utils/analytics";
 import { useExportMatchPDF } from "../../../utils/exportPDF";
 
 // Constantes (sin cambios)
@@ -341,7 +342,22 @@ export default function MatchDetailScreen() {
     return { A: aggregate(teamAPlayers), B: aggregate(teamBPlayers) };
   }, [playerStats, teamAPlayers, teamBPlayers]);
 
-  // Hook de exportación a PDF
+  // 🔄 NUEVO: Calcular todas las acciones planas y las estadísticas globales del partido
+  const allMatchActions = useMemo(() => {
+    const actions: RallyAction[] = [];
+    match.history.forEach((set) => {
+      set.rallies.forEach((rally) => {
+        actions.push(...rally.actions);
+      });
+    });
+    return actions;
+  }, [match]);
+
+  const matchCategories = useMemo(() => {
+    return computeCategoriesAndRadar(allMatchActions);
+  }, [allMatchActions]);
+
+  // Hook de exportación a PDF (actualizado con categoriesMap)
   const { handleExportPDF } = useExportMatchPDF({
     match,
     teamAPlayers,
@@ -350,6 +366,7 @@ export default function MatchDetailScreen() {
     teamAggregatedStats,
     formatDate,
     getWinner,
+    categoriesMap: matchCategories.categoriesMap,
   });
 
   const PlayerCard = ({
@@ -645,14 +662,24 @@ export default function MatchDetailScreen() {
                     Marcador al inicio: {rally.scoreAtTheTime.A}-
                     {rally.scoreAtTheTime.B}
                   </Text>
-                  {rally.actions.map((action, aIdx) => (
-                    <Text key={aIdx} style={tw`text-xs ml-2 text-slate-700`}>
-                      {action.playerId} → {action.category}/{action.subAction}{" "}
-                      {action.value !== undefined ? `(${action.value})` : ""}{" "}
-                      {action.origin &&
-                        `desde ${action.origin} hacia ${action.destination}`}
-                    </Text>
-                  ))}
+                  {rally.actions.map((action, aIdx) => {
+                    const isTeamA = action.playerId.startsWith("A-");
+                    return (
+                      <Text
+                        key={aIdx}
+                        style={tw`text-xs ml-2 py-0.5 px-1 rounded my-0.5 ${
+                          isTeamA
+                            ? "bg-blue-100 text-blue-900"
+                            : "bg-red-100 text-red-900"
+                        }`}
+                      >
+                        {action.playerId} → {action.category}/{action.subAction}{" "}
+                        {action.value !== undefined ? `(${action.value})` : ""}{" "}
+                        {action.origin &&
+                          `desde ${action.origin} hacia ${action.destination}`}
+                      </Text>
+                    );
+                  })}
                 </View>
               ))
             )}
