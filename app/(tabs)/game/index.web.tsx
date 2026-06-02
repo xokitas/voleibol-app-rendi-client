@@ -12,10 +12,6 @@ import { useStats } from "../../../hooks/useStats";
 import tw from "../../../lib/tailwind";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 
-// ==========================================
-// 1. CONFIGURACIÓN Y CONSTANTES
-// ==========================================
-
 const categoryColors: Record<string, string> = {
   SERVICIO: "bg-[#93c5fd]",
   RECEPCION: "bg-[#86efac]",
@@ -79,10 +75,6 @@ const zoneCoords: Record<string, { x: number; y: number }> = {
   "B-OUT-RIGHT": { x: 195, y: 120 },
 };
 
-// ==========================================
-// 2. COMPONENTES AUXILIARES
-// ==========================================
-
 const CourtZone = ({
   id,
   displayLabel,
@@ -136,10 +128,6 @@ const MiniStatBox = ({
   </View>
 );
 
-// ==========================================
-// 3. COMPONENTE PRINCIPAL
-// ==========================================
-
 export default function GameScreenWeb() {
   const router = useRouter();
   const currentMatch = useMatchStore((s) => s.currentMatch);
@@ -183,7 +171,6 @@ export default function GameScreenWeb() {
   const initialReal = currentMatch?.realTimeSeconds ?? 0;
   const timers = useGameTimers(initialTotal, initialReal);
 
-  // ================== ESTADO DEL MODAL ==================
   const [modal, setModal] = useState({
     visible: false,
     title: "",
@@ -194,7 +181,6 @@ export default function GameScreenWeb() {
     confirmText: "Aceptar",
     secondaryText: undefined as string | undefined,
   });
-
   const showModal = (
     title: string,
     message: string,
@@ -217,7 +203,6 @@ export default function GameScreenWeb() {
   };
   const hideModal = () => setModal((prev) => ({ ...prev, visible: false }));
 
-  // Estados locales
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const [selectionStep, setSelectionStep] = useState(0);
@@ -227,8 +212,6 @@ export default function GameScreenWeb() {
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  // Estados para sustituciones
   const [activePlayersA, setActivePlayersA] = useState<number[]>([0, 1]);
   const [activePlayersB, setActivePlayersB] = useState<number[]>([0, 1]);
   const [showSubModal, setShowSubModal] = useState<{
@@ -238,12 +221,9 @@ export default function GameScreenWeb() {
 
   const handleMouseMove = useCallback((e: any) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setMousePos({ x, y });
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }, []);
 
-  // Efectos
   useEffect(() => {
     if (!pendingAction) setIsEditingMode(false);
   }, [pendingAction]);
@@ -258,6 +238,7 @@ export default function GameScreenWeb() {
     return () => {
       timers.stopRealTime();
       timers.stopTotalTime();
+      timers.resetTimers(); // Añadido para limpiar completamente al desmontar
     };
   }, []);
 
@@ -271,8 +252,6 @@ export default function GameScreenWeb() {
           hideModal();
           toggleWind();
         },
-        undefined,
-        "Aceptar",
       );
     }
   }, [mustSwitchSide]);
@@ -288,8 +267,6 @@ export default function GameScreenWeb() {
           hideModal();
           toggleWind();
         },
-        undefined,
-        "OK",
       );
     }
   }, [currentSet]);
@@ -306,8 +283,6 @@ export default function GameScreenWeb() {
           saveCurrentMatch("finished");
           router.replace("/(tabs)/menu");
         },
-        undefined,
-        "OK",
       );
     }
   }, [sets.A, sets.B]);
@@ -326,7 +301,6 @@ export default function GameScreenWeb() {
     }
   }, [pendingAction, isEditingAction]);
 
-  // Teclado numérico (1‑4) para seleccionar jugadores activos
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!pendingAction && ["1", "2", "3", "4"].includes(e.key)) {
@@ -334,7 +308,6 @@ export default function GameScreenWeb() {
         const playersA = eventData?.teamA?.players || [];
         const playersB = eventData?.teamB?.players || [];
         let targetPlayerId: string | null = null;
-
         if (index === 0 && activePlayersA.length > 0) {
           const player = playersA[activePlayersA[0]];
           if (player) targetPlayerId = `A-${player.number}`;
@@ -348,12 +321,10 @@ export default function GameScreenWeb() {
           const player = playersB[activePlayersB[1]];
           if (player) targetPlayerId = `B-${player.number}`;
         }
-
         if (targetPlayerId) handlePlayerSelect(targetPlayerId);
         else playErrorBuzzer();
         return;
       }
-
       if (pendingAction && pendingAction.value === undefined) {
         let val: number | null = null;
         if (e.key === "`" || e.key === "0" || e.key === "º") val = 0;
@@ -364,9 +335,8 @@ export default function GameScreenWeb() {
           ];
           if (allowed.includes(val)) confirmActionValue(val);
           else playErrorBuzzer();
-        } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+        } else if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key))
           playErrorBuzzer();
-        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -463,6 +433,7 @@ export default function GameScreenWeb() {
         clearCurrentMatch();
         timers.stopRealTime();
         timers.stopTotalTime();
+        timers.resetTimers();
         router.replace("/(tabs)/menu");
       },
       "Guardar y salir",
@@ -497,7 +468,6 @@ export default function GameScreenWeb() {
       },
     );
 
-  // Renderizado de columnas de acciones
   const renderActionColumn = (
     title: string,
     category: string,
@@ -592,35 +562,30 @@ export default function GameScreenWeb() {
       (p: any) => p.number === player.number,
     ) ?? -1;
 
-  // ============ UI ============
   return (
     <View style={tw`flex-1 bg-slate-900`}>
       <HeaderMenu
-        dark={true}
+        dark
         title="PANEL DE JUEGO"
         onBack={handleExit}
         showQuickNav={true}
       />
-
       <View style={tw`flex-1 flex-row overflow-hidden`}>
         {isManualOpen && (
           <View style={tw`w-80 border-r border-slate-800 bg-slate-900 z-40`}>
             <ReferencePanel
-              dark={true}
+              dark
               isOpen={isManualOpen}
               setIsOpen={setIsManualOpen}
               hoveredAction={hoveredAction}
             />
           </View>
         )}
-
         <View style={tw`flex-1 bg-slate-900 flex-col overflow-hidden relative`}>
           <View style={tw`flex-1 flex-col`}>
-            {/* Marcador superior */}
             <View
               style={tw`h-44 border-b border-slate-800 flex-row items-center justify-between px-10 transition-colors duration-300 bg-slate-950`}
             >
-              {/* Equipo A */}
               <View
                 style={tw`flex-1 flex-row items-center justify-start gap-8`}
               >
@@ -657,9 +622,7 @@ export default function GameScreenWeb() {
                   {activePlayersA.map((playerIndex, slotIndex) => {
                     const player = eventData?.teamA?.players[playerIndex];
                     if (!player) return null;
-                    const playerId = player.number
-                      ? `A-${player.number}`
-                      : `A-${playerIndex}`;
+                    const playerId = `A-${player.number}`;
                     const isSelected = selectedPlayerId === playerId;
                     return (
                       <View
@@ -695,8 +658,6 @@ export default function GameScreenWeb() {
                   })}
                 </View>
               </View>
-
-              {/* Puntuación central */}
               <View
                 style={tw`items-center bg-slate-950 px-10 py-2 border-x border-slate-900/50 shadow-2xl`}
               >
@@ -725,16 +686,12 @@ export default function GameScreenWeb() {
                   </Text>
                 </View>
               </View>
-
-              {/* Equipo B */}
               <View style={tw`flex-1 flex-row items-center justify-end gap-8`}>
                 <View style={tw`flex-col gap-5`}>
                   {activePlayersB.map((playerIndex, slotIndex) => {
                     const player = eventData?.teamB?.players[playerIndex];
                     if (!player) return null;
-                    const playerId = player.number
-                      ? `B-${player.number}`
-                      : `B-${playerIndex}`;
+                    const playerId = `B-${player.number}`;
                     const isSelected = selectedPlayerId === playerId;
                     return (
                       <View
@@ -800,15 +757,11 @@ export default function GameScreenWeb() {
                 </View>
               </View>
             </View>
-
-            {/* Sección central: cancha + columnas + estadísticas */}
             <View
               style={tw`flex-1 flex-row items-center px-4 gap-4 overflow-hidden`}
             >
-              {/* CANCHA COMPLETA */}
               <View
                 style={tw`w-64 h-80 bg-slate-950/50 rounded-2xl p-1 border border-slate-800 relative`}
-                // @ts-ignore
                 onPointerMove={(e: any) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setMousePos({
@@ -817,7 +770,6 @@ export default function GameScreenWeb() {
                   });
                 }}
               >
-                {/* ZONA FUERA ARRIBA */}
                 <View style={tw`flex-row h-8 w-full`}>
                   <CourtZone
                     id="A-OUT-TOP"
@@ -836,8 +788,6 @@ export default function GameScreenWeb() {
                     onPress={() => handleZoneClick("B-OUT-TOP")}
                   />
                 </View>
-
-                {/* FILA CENTRAL (IZQ | CANCHA | DER) */}
                 <View style={tw`flex-1 flex-row w-full my-1`}>
                   <CourtZone
                     id="A-OUT-LEFT"
@@ -847,8 +797,6 @@ export default function GameScreenWeb() {
                     isSelected={origin === "A-OUT-LEFT"}
                     onPress={() => handleZoneClick("A-OUT-LEFT")}
                   />
-
-                  {/* GRID DE JUEGO (A | RED | B) */}
                   <View style={tw`flex-1 flex-row mx-1`}>
                     <View style={tw`flex-1 flex-row`}>
                       <View style={tw`flex-1 flex-col`}>
@@ -876,9 +824,7 @@ export default function GameScreenWeb() {
                         ))}
                       </View>
                     </View>
-
                     <View style={tw`w-[2px] bg-yellow-500/30 mx-1`} />
-
                     <View style={tw`flex-1 flex-row`}>
                       <View style={tw`flex-1 flex-col`}>
                         {["DD", "DC", "DI"].map((pos) => (
@@ -906,7 +852,6 @@ export default function GameScreenWeb() {
                       </View>
                     </View>
                   </View>
-
                   <CourtZone
                     id="B-OUT-RIGHT"
                     displayLabel="OUT"
@@ -916,8 +861,6 @@ export default function GameScreenWeb() {
                     onPress={() => handleZoneClick("B-OUT-RIGHT")}
                   />
                 </View>
-
-                {/* ZONA FUERA ABAJO */}
                 <View style={tw`flex-row h-8 w-full`}>
                   <CourtZone
                     id="A-OUT-BOTTOM"
@@ -936,8 +879,6 @@ export default function GameScreenWeb() {
                     onPress={() => handleZoneClick("B-OUT-BOTTOM")}
                   />
                 </View>
-
-                {/* Flecha SVG */}
                 {origin && selectionStep === 1 && (
                   <svg
                     style={{
@@ -982,11 +923,7 @@ export default function GameScreenWeb() {
                   </Text>
                 ) : null}
               </View>
-              {/* FIN CANCHA */}
-
-              {/* Columnas de acción */}
               <View style={tw`flex-1 flex-col h-full justify-center py-2`}>
-                {/* Ticket del rally */}
                 <View
                   style={[
                     tw`flex-row items-center bg-slate-950/90 rounded-xl border border-cyan-900/30 px-3 py-1.5 mb-3 shadow-2xl`,
@@ -1115,8 +1052,6 @@ export default function GameScreenWeb() {
                     </TouchableOpacity>
                   )}
                 </View>
-
-                {/* Columnas de acciones */}
                 <View style={tw`flex-1 flex-row gap-1 justify-start`}>
                   {renderActionColumn("Serv.", "SERVICIO", [
                     "BAJ",
@@ -1159,8 +1094,6 @@ export default function GameScreenWeb() {
                   ])}
                 </View>
               </View>
-
-              {/* Panel de estadísticas (scrollable) */}
               <View
                 style={[
                   tw`bg-slate-950 border-l border-slate-800`,
@@ -1201,17 +1134,16 @@ export default function GameScreenWeb() {
                         const pId = `${player.team}-${player.number}`;
                         const stats = getPlayerStats(pId);
                         if (!stats) return null;
-                        const isTeamA = player.team === "A";
                         return (
                           <View
                             key={idx}
-                            style={tw`${isTeamA ? "bg-blue-900/20 border-blue-500" : "bg-red-900/20 border-red-500"} p-2 rounded-xl border`}
+                            style={tw`${player.team === "A" ? "bg-blue-900/20 border-blue-500" : "bg-red-900/20 border-red-500"} p-2 rounded-xl border`}
                           >
                             <View
                               style={tw`flex-row justify-between items-center mb-1`}
                             >
                               <Text
-                                style={tw`${isTeamA ? "text-blue-400" : "text-red-400"} font-black text-[10px]`}
+                                style={tw`${player.team === "A" ? "text-blue-400" : "text-red-400"} font-black text-[10px]`}
                               >
                                 #{player.number} {player.fullName}
                               </Text>
@@ -1275,8 +1207,6 @@ export default function GameScreenWeb() {
                 )}
               </View>
             </View>
-
-            {/* Footer con cronómetros y botones */}
             <View
               style={tw`h-20 bg-slate-950 border-t border-slate-800 flex-row items-center justify-between px-10`}
             >
@@ -1385,8 +1315,6 @@ export default function GameScreenWeb() {
           </View>
         </View>
       </View>
-
-      {/* Modal de sustitución */}
       <Modal
         visible={!!showSubModal}
         transparent
@@ -1409,7 +1337,6 @@ export default function GameScreenWeb() {
               })),
             ].map((player, idx) => {
               const team = player.team;
-              const playerNumber = player.number;
               const isActive =
                 (team === "A" &&
                   activePlayersA.includes(playersAOriginalIndex(player))) ||
@@ -1417,32 +1344,29 @@ export default function GameScreenWeb() {
                   activePlayersB.includes(playersBOriginalIndex(player)));
               return (
                 <TouchableOpacity
-                  key={`sub-${team}-${playerNumber}`}
+                  key={`sub-${team}-${player.number}`}
                   onPress={() => {
                     if (!showSubModal) return;
                     const { team: targetTeam, index } = showSubModal;
                     const selectedTeamPlayers =
-                      team === "A"
+                      targetTeam === "A"
                         ? eventData?.teamA?.players
                         : eventData?.teamB?.players;
                     if (!selectedTeamPlayers) return;
                     const selectedIndex = selectedTeamPlayers.findIndex(
-                      (p: any) => p.number === playerNumber,
+                      (p: any) => p.number === player.number,
                     );
                     if (selectedIndex === -1) return;
-
                     if (targetTeam === team) {
-                      if (targetTeam === "A") {
+                      if (targetTeam === "A")
                         setActivePlayersA((prev) =>
                           prev.map((i) => (i === index ? selectedIndex : i)),
                         );
-                      } else {
+                      else
                         setActivePlayersB((prev) =>
                           prev.map((i) => (i === index ? selectedIndex : i)),
                         );
-                      }
                     } else {
-                      // Intercambio entre equipos (se mantiene igual)
                       if (targetTeam === "A") {
                         setActivePlayersA((prev) => {
                           const newA = [...prev];
@@ -1495,8 +1419,6 @@ export default function GameScreenWeb() {
           </View>
         </View>
       </Modal>
-
-      {/* Modal global de confirmación */}
       <CustomModal
         visible={modal.visible}
         title={modal.title}

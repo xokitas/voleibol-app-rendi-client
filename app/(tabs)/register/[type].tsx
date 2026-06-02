@@ -122,19 +122,23 @@ const SmartInput = ({
   return (
     <View style={tw`flex-1`}>
       <View
-        style={tw`flex-row items-center border rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2 ${
-          !isValid ? "border-red-500" : "border-slate-300"
-        }`}
+        style={tw`flex-row items-center border rounded-lg ${
+          isMobile ? "py-0" : "h-12"
+        } bg-slate-50 px-2 ${!isValid ? "border-red-500" : "border-slate-300"}`}
       >
         {isPC && (
           <Text
-            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+            style={tw`font-bold text-[#003366] ${
+              isMobile ? "text-[10px]" : "text-xs"
+            } mr-1 uppercase`}
           >
             {label}:
           </Text>
         )}
         <TextInput
-          style={tw`flex-1 h-full text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}
+          style={tw`flex-1 h-full text-slate-700 ${
+            isMobile ? "text-sm" : "text-sm"
+          }`}
           value={value}
           placeholder={isPC ? "" : label}
           placeholderTextColor="#94A3B8"
@@ -166,17 +170,17 @@ const SmartSelect = ({
 
   const miniHeight = isMini
     ? isMobile
-      ? "h-7"
+      ? "h-8"
       : "h-10"
     : isMobile
-      ? "h-8"
+      ? "h-10"
       : "h-12";
   const miniTextSize = isMini
     ? isMobile
-      ? "text-[9px]"
+      ? "text-xs"
       : "text-sm"
     : isMobile
-      ? "text-xs"
+      ? "text-sm"
       : "text-sm";
 
   return (
@@ -192,7 +196,9 @@ const SmartSelect = ({
       >
         {isPC && !isMini && label !== "" && (
           <Text
-            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+            style={tw`font-bold text-[#003366] ${
+              isMobile ? "text-[10px]" : "text-xs"
+            } mr-1 uppercase`}
           >
             {label}:
           </Text>
@@ -205,7 +211,7 @@ const SmartSelect = ({
         </Text>
         <Ionicons
           name={isOpen ? "chevron-up" : "chevron-down"}
-          size={isMini ? (isMobile ? 8 : 12) : isMobile ? 12 : 14}
+          size={isMini ? (isMobile ? 10 : 12) : isMobile ? 12 : 14}
           color={disabled ? "#94a3b8" : "#003366"}
         />
       </TouchableOpacity>
@@ -215,7 +221,7 @@ const SmartSelect = ({
           style={[
             tw`absolute left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-xl`,
             {
-              top: isMini ? (isMobile ? 30 : 42) : isMobile ? 34 : 50,
+              top: isMini ? (isMobile ? 34 : 42) : isMobile ? 42 : 50,
               zIndex: 9999,
               elevation: 10,
               minWidth: isMini ? 80 : "auto",
@@ -230,10 +236,20 @@ const SmartSelect = ({
                 onSelect(opt);
                 setIsOpen(null);
               }}
-              style={tw`${isMini || isMobile ? "p-2" : "p-4"} border-b border-slate-100`}
+              style={tw`${
+                isMini || isMobile ? "p-2" : "p-4"
+              } border-b border-slate-100`}
             >
               <Text
-                style={tw`text-slate-700 ${isMini ? (isMobile ? "text-[8px]" : "text-sm") : isMobile ? "text-xs" : "text-sm"}`}
+                style={tw`text-slate-700 ${
+                  isMini
+                    ? isMobile
+                      ? "text-xs"
+                      : "text-sm"
+                    : isMobile
+                      ? "text-xs"
+                      : "text-sm"
+                }`}
               >
                 {opt}
               </Text>
@@ -254,11 +270,15 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
   if (Platform.OS === "web") {
     return (
       <View
-        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
+        style={tw`flex-1 flex-row items-center border border-slate-300 rounded-lg ${
+          isMobile ? "h-10" : "h-12"
+        } bg-slate-50 px-2`}
       >
         {isPC && (
           <Text
-            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+            style={tw`font-bold text-[#003366] ${
+              isMobile ? "text-[10px]" : "text-xs"
+            } mr-1 uppercase`}
           >
             {label}:
           </Text>
@@ -270,7 +290,7 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
             border: "none",
             backgroundColor: "transparent",
             color: "#334155",
-            fontSize: isMobile ? "12px" : "14px",
+            fontSize: isMobile ? "14px" : "14px",
             outline: "none",
           }}
           value={
@@ -303,16 +323,20 @@ const SmartDateTime = ({ label, value, mode, onChange }: any) => {
       <TouchableOpacity
         onPress={() => setShow(true)}
         activeOpacity={0.7}
-        style={tw`flex-row items-center border border-slate-300 rounded-lg ${isMobile ? "h-8" : "h-12"} bg-slate-50 px-2`}
+        style={tw`flex-row items-center border border-slate-300 rounded-lg ${
+          isMobile ? "h-10" : "h-12"
+        } bg-slate-50 px-2`}
       >
         {isPC && (
           <Text
-            style={tw`font-bold text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} mr-1 uppercase`}
+            style={tw`font-bold text-[#003366] ${
+              isMobile ? "text-[10px]" : "text-xs"
+            } mr-1 uppercase`}
           >
             {label}:
           </Text>
         )}
-        <Text style={tw`text-slate-700 ${isMobile ? "text-xs" : "text-sm"}`}>
+        <Text style={tw`text-slate-700 ${isMobile ? "text-sm" : "text-sm"}`}>
           {value instanceof Date
             ? mode === "date"
               ? value.toLocaleDateString()
@@ -783,11 +807,15 @@ export default function RegisterDataScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={tw`${isMobile ? "p-3 pt-2 pb-10" : "p-5 pt-16 pb-20"}`}
+        contentContainerStyle={tw`${
+          isMobile ? "p-3 pt-2 pb-10" : "p-5 pt-16 pb-20"
+        }`}
         style={{ flex: 1 }}
       >
         <Text
-          style={tw`${isMobile ? "text-sm" : "text-2xl"} font-black text-[#003366] text-center mb-4 uppercase`}
+          style={tw`${
+            isMobile ? "text-sm" : "text-2xl"
+          } font-black text-[#003366] text-center mb-4 uppercase`}
         >
           {type === "oficial"
             ? "Competencia Oficial"
@@ -834,7 +862,9 @@ export default function RegisterDataScreen() {
 
         <View style={tw`flex-row items-center gap-2 my-3`}>
           <TextInput
-            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${isMobile ? "text-sm" : "text-lg"} font-bold`}
+            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${
+              isMobile ? "text-sm" : "text-lg"
+            } font-bold`}
             placeholder="Equipo A"
             value={teamA}
             onChangeText={setTeamA}
@@ -843,7 +873,9 @@ export default function RegisterDataScreen() {
             VS
           </Text>
           <TextInput
-            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${isMobile ? "text-sm" : "text-lg"} font-bold text-right`}
+            style={tw`flex-1 border-b-2 border-[#003366] p-1 ${
+              isMobile ? "text-sm" : "text-lg"
+            } font-bold text-right`}
             placeholder="Equipo B"
             value={teamB}
             onChangeText={setTeamB}
@@ -853,7 +885,9 @@ export default function RegisterDataScreen() {
         {/* Tabla Equipo A */}
         <View style={tw`flex-row justify-between items-center mb-1`}>
           <Text
-            style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
+            style={tw`text-[#003366] font-bold ${
+              isMobile ? "text-xs" : "text-base"
+            }`}
           >
             Jugadores de {teamA}
           </Text>
@@ -868,7 +902,9 @@ export default function RegisterDataScreen() {
                 color="#003366"
               />
               <Text
-                style={tw`text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} font-bold ml-1`}
+                style={tw`text-[#003366] ${
+                  isMobile ? "text-[10px]" : "text-xs"
+                } font-bold ml-1`}
               >
                 Añadir
               </Text>
@@ -877,22 +913,30 @@ export default function RegisterDataScreen() {
         </View>
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
-            style={tw`${isMobile ? "w-6" : "w-10"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-8" : "w-10"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             No
           </Text>
           <Text
-            style={tw`flex-1 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} ml-1`}
+            style={tw`flex-1 font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } ml-1`}
           >
             Nombre y Apellidos
           </Text>
           <Text
-            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             Posición
           </Text>
           <Text
-            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             Zona
           </Text>
@@ -907,18 +951,24 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`${isMobile ? "w-6" : "w-10"} text-center border ${!/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"} rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
+              style={tw`${isMobile ? "w-8" : "w-10"} text-center border ${
+                !/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"
+              } rounded ${isMobile ? "text-xs py-0" : "text-[13px] h-10"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("A", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-1 border ${!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName) ? "border-red-500" : "border-slate-100"} rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
+              style={tw`flex-1 ml-1 border ${
+                !/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName)
+                  ? "border-red-500"
+                  : "border-slate-100"
+              } rounded px-1 ${isMobile ? "text-xs py-0" : "text-[13px] h-10"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("A", i, "fullName", v)}
             />
-            <View style={tw`${isMobile ? "w-16" : "w-30"} px-0.5`}>
+            <View style={tw`${isMobile ? "w-20" : "w-30"} px-0.2`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -942,7 +992,7 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-            <View style={tw`${isMobile ? "w-16" : "w-24"} px-0.5`}>
+            <View style={tw`${isMobile ? "w-20" : "w-24"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -982,7 +1032,9 @@ export default function RegisterDataScreen() {
         {/* Tabla Equipo B */}
         <View style={tw`flex-row justify-between items-center mt-6 mb-1`}>
           <Text
-            style={tw`text-[#003366] font-bold ${isMobile ? "text-xs" : "text-base"}`}
+            style={tw`text-[#003366] font-bold ${
+              isMobile ? "text-xs" : "text-base"
+            }`}
           >
             Jugadores de {teamB}
           </Text>
@@ -997,7 +1049,9 @@ export default function RegisterDataScreen() {
                 color="#003366"
               />
               <Text
-                style={tw`text-[#003366] ${isMobile ? "text-[10px]" : "text-xs"} font-bold ml-1`}
+                style={tw`text-[#003366] ${
+                  isMobile ? "text-[10px]" : "text-xs"
+                } font-bold ml-1`}
               >
                 Añadir
               </Text>
@@ -1006,22 +1060,30 @@ export default function RegisterDataScreen() {
         </View>
         <View style={tw`bg-slate-200 flex-row p-1 rounded-t-lg`}>
           <Text
-            style={tw`${isMobile ? "w-6" : "w-10"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-8" : "w-10"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             No
           </Text>
           <Text
-            style={tw`flex-1 font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} ml-1`}
+            style={tw`flex-1 font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } ml-1`}
           >
             Nombre y Apellidos
           </Text>
           <Text
-            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             Posición
           </Text>
           <Text
-            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${isMobile ? "text-[10px]" : "text-[18px]"} text-center`}
+            style={tw`${isMobile ? "w-16" : "w-24"} font-bold ${
+              isMobile ? "text-[10px]" : "text-[18px]"
+            } text-center`}
           >
             Zona
           </Text>
@@ -1036,18 +1098,24 @@ export default function RegisterDataScreen() {
             ]}
           >
             <TextInput
-              style={tw`${isMobile ? "w-6" : "w-10"} text-center border ${!/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"} rounded ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
+              style={tw`${isMobile ? "w-8" : "w-10"} text-center border ${
+                !/^\d*$/.test(p.number) ? "border-red-500" : "border-slate-100"
+              } rounded ${isMobile ? "text-xs py-0" : "text-[13px] h-10"}`}
               value={p.number}
               keyboardType="numeric"
               onChangeText={(v) => updatePlayer("B", i, "number", v)}
             />
             <TextInput
-              style={tw`flex-1 ml-1 border ${!/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName) ? "border-red-500" : "border-slate-100"} rounded px-1 ${isMobile ? "text-[10px] h-6" : "text-[13px] h-10"}`}
+              style={tw`flex-1 ml-1 border ${
+                !/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]*$/.test(p.fullName)
+                  ? "border-red-500"
+                  : "border-slate-100"
+              } rounded px-1 ${isMobile ? "text-xs py-0" : "text-[13px] h-10"}`}
               placeholder="Nombre..."
               value={p.fullName}
               onChangeText={(v) => updatePlayer("B", i, "fullName", v)}
             />
-            <View style={tw`${isMobile ? "w-16" : "w-30"} px-0.5`}>
+            <View style={tw`${isMobile ? "w-20" : "w-30"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={POSITION_OPTIONS.map((o) => o.label)}
@@ -1071,7 +1139,7 @@ export default function RegisterDataScreen() {
                 isMini
               />
             </View>
-            <View style={tw`${isMobile ? "w-16" : "w-24"} px-0.5`}>
+            <View style={tw`${isMobile ? "w-20" : "w-24"} px-0.5`}>
               <SmartSelect
                 label=""
                 options={ZONE_OPTIONS.map((o) => o.label)}
@@ -1130,7 +1198,9 @@ export default function RegisterDataScreen() {
             onPress={handleStartEvent}
             activeOpacity={0.8}
             disabled={!isFormValid}
-            style={tw`${isFormValid ? "bg-[#003366]" : "bg-slate-400"} ${isMobile ? "py-3" : "py-4"} rounded-2xl shadow-lg flex-row justify-center items-center`}
+            style={tw`${isFormValid ? "bg-[#003366]" : "bg-slate-400"} ${
+              isMobile ? "py-3" : "py-4"
+            } rounded-2xl shadow-lg flex-row justify-center items-center`}
           >
             <Ionicons
               name="play-circle"
@@ -1138,13 +1208,17 @@ export default function RegisterDataScreen() {
               color="white"
             />
             <Text
-              style={tw`text-white ${isMobile ? "text-sm" : "text-lg"} font-black ml-2 uppercase`}
+              style={tw`text-white ${
+                isMobile ? "text-sm" : "text-lg"
+              } font-black ml-2 uppercase`}
             >
               Comenzar Registro de Evento
             </Text>
           </TouchableOpacity>
           <Text
-            style={tw`text-slate-400 ${isMobile ? "text-[8px]" : "text-[10px]"} text-center mt-2 uppercase`}
+            style={tw`text-slate-400 ${
+              isMobile ? "text-[8px]" : "text-[10px]"
+            } text-center mt-2 uppercase`}
           >
             Al continuar, se confirmarán las nóminas de ambos equipos.
           </Text>
