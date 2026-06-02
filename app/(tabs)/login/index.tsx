@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import tw from "../../../lib/tailwind";
@@ -17,17 +18,18 @@ import { useAuthStore } from "../../../src/store/useAuthStore";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Modal de error
   const [modalError, setModalError] = useState<{
     visible: boolean;
     title: string;
     message: string;
   }>({ visible: false, title: "", message: "" });
 
-  // Modal de éxito
   const [successModal, setSuccessModal] = useState(false);
 
   const loginAction = useAuthStore((state) => state.login);
@@ -68,7 +70,6 @@ export default function LoginScreen() {
 
     try {
       await loginAction(email, password);
-      // Mostrar modal de éxito en lugar de volver directamente
       setSuccessModal(true);
     } catch (err: any) {
       const mensajeOriginal = err.message || "Error desconocido";
@@ -87,23 +88,41 @@ export default function LoginScreen() {
         style={tw`flex-1 justify-center px-8`}
       >
         {/* Encabezado */}
-        <View style={tw`items-center mb-10`}>
-          <Ionicons name="person-circle-outline" size={80} color="#003366" />
-          <Text style={tw`text-3xl font-black text-[#003366] mt-4`}>
+        <View style={tw`items-center ${isMobile ? "mb-6" : "mb-10"}`}>
+          <Ionicons
+            name="person-circle-outline"
+            size={isMobile ? 56 : 80}
+            color="#003366"
+          />
+          <Text
+            style={tw`${
+              isMobile ? "text-2xl" : "text-3xl"
+            } font-black text-[#003366] ${isMobile ? "mt-2" : "mt-4"}`}
+          >
             Iniciar Sesión
           </Text>
-          <Text style={tw`text-sm text-slate-500 mt-2 text-center`}>
+          <Text
+            style={tw`${
+              isMobile ? "text-xs" : "text-sm"
+            } text-slate-500 mt-2 text-center`}
+          >
             Accede para sincronizar tus datos y respaldarlos en la nube.
           </Text>
         </View>
 
         {/* Campos del formulario */}
         <View style={tw`mb-6`}>
-          <Text style={tw`text-xs font-bold text-slate-500 uppercase mb-2`}>
+          <Text
+            style={tw`${
+              isMobile ? "text-[10px]" : "text-xs"
+            } font-bold text-slate-500 uppercase mb-2`}
+          >
             Correo electrónico
           </Text>
           <TextInput
-            style={tw`border border-slate-300 rounded-xl px-4 py-3 text-base`}
+            style={tw`border border-slate-300 rounded-xl px-4 ${
+              isMobile ? "py-2.5 text-sm" : "py-3 text-base"
+            }`}
             placeholder="tu@email.com"
             placeholderTextColor="#94a3b8"
             keyboardType="email-address"
@@ -114,11 +133,17 @@ export default function LoginScreen() {
         </View>
 
         <View style={tw`mb-8`}>
-          <Text style={tw`text-xs font-bold text-slate-500 uppercase mb-2`}>
+          <Text
+            style={tw`${
+              isMobile ? "text-[10px]" : "text-xs"
+            } font-bold text-slate-500 uppercase mb-2`}
+          >
             Contraseña
           </Text>
           <TextInput
-            style={tw`border border-slate-300 rounded-xl px-4 py-3 text-base`}
+            style={tw`border border-slate-300 rounded-xl px-4 ${
+              isMobile ? "py-2.5 text-sm" : "py-3 text-base"
+            }`}
             placeholder="••••••••"
             placeholderTextColor="#94a3b8"
             secureTextEntry
@@ -129,13 +154,17 @@ export default function LoginScreen() {
 
         {/* Botón de inicio de sesión */}
         <TouchableOpacity
-          style={tw`bg-[#003366] py-4 rounded-xl items-center mb-6 ${
-            isLoading ? "opacity-70" : ""
-          }`}
+          style={tw`bg-[#003366] ${
+            isMobile ? "py-3" : "py-4"
+          } rounded-xl items-center mb-6 ${isLoading ? "opacity-70" : ""}`}
           onPress={handleLogin}
           disabled={isLoading}
         >
-          <Text style={tw`text-white font-bold text-lg uppercase`}>
+          <Text
+            style={tw`text-white font-bold ${
+              isMobile ? "text-base" : "text-lg"
+            } uppercase`}
+          >
             {isLoading ? "Ingresando..." : "Entrar"}
           </Text>
         </TouchableOpacity>
@@ -147,7 +176,9 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
 
-        <Text style={tw`text-xs text-slate-400 text-center mt-10`}>
+        <Text
+          style={tw`${isMobile ? "text-[10px]" : "text-xs"} text-slate-400 text-center mt-10`}
+        >
           Tus datos se mantienen seguros. La sesión se conservará incluso sin
           conexión.
         </Text>
