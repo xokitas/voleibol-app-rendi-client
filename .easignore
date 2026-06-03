@@ -1,0 +1,22 @@
+# Dependencias (se instalan en el servidor)
+node_modules/
+
+# Archivos de compilación web
+dist/
+.expo/
+web-build/
+
+# Entorno de escritorio (Tauri)
+src-tauri/
+
+# Archivos de caché y logs
+.cache/
+*.log
+
+# Archivos de configuración locales
+.env
+.env.local
+
+# Dependencias de desarrollo (opcional, pero reduce peso)
+.git/
+.gitignore
