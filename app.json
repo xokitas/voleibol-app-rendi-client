@@ -38,7 +38,8 @@
         "expo-build-properties",
         {
           "android": {
-            "screenOrientation": "landscape"
+            "screenOrientation": "landscape",
+            "extraMavenRepos": ["https://www.jitpack.io"]
           }
         }
       ],
