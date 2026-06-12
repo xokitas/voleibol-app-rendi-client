@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
+import ReferencePanel from "../../../components/ReferencePanel"; // <-- nuevo
 import { useGameTimers } from "../../../hooks/useGameTimers";
 import { useScoutingLogic } from "../../../hooks/useScoutingLogic";
 import { useStats } from "../../../hooks/useStats";
@@ -191,8 +192,14 @@ export default function GameScreenMobile() {
     index: number;
   } | null>(null);
 
+  // Nuevo: acción seleccionada para mostrar en el manual móvil
+  const [selectedMobileAction, setSelectedMobileAction] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     if (!pendingAction) {
+      setSelectedMobileAction(null); // limpia al iniciar un nuevo rally
       setIsWaitingForZone(false);
       setOrigin(null);
       setSelectionStep(0);
@@ -260,10 +267,12 @@ export default function GameScreenMobile() {
     }
   }, [pendingAction, isEditingAction]);
 
+  // Modificada: ahora también actualiza selectedMobileAction
   const handleSubActionPress = (category: string, sub: string) => {
     handleActionClick(category, sub);
     const allowed = actionAllowedValues[sub] || [0, 1, 2, 3, 4];
     setValuePopover({ visible: true, subAction: sub, allowedValues: allowed });
+    setSelectedMobileAction(sub); // <-- para el manual
   };
 
   const handleZonePress = (zone: string) => {
@@ -398,9 +407,11 @@ export default function GameScreenMobile() {
       />
 
       <ScrollView contentContainerStyle={tw`pb-24`}>
+        {/* Marcador compacto */}
         <View
           style={tw`h-32 bg-slate-950 flex-row items-center justify-between px-3`}
         >
+          {/* Equipo A */}
           <View style={tw`flex-1 flex-col items-start`}>
             <Text style={tw`text-slate-100 font-black text-xs mb-1`}>
               {eventData?.teamA?.name || "A"}
@@ -468,6 +479,7 @@ export default function GameScreenMobile() {
             </View>
           </View>
 
+          {/* Puntuación central */}
           <View style={tw`items-center bg-slate-900 px-4 py-1 rounded-xl mx-2`}>
             <Text style={tw`text-slate-500 font-black text-[7px] mb-0.5`}>
               PUNTUACIÓN
@@ -489,6 +501,7 @@ export default function GameScreenMobile() {
             </View>
           </View>
 
+          {/* Equipo B */}
           <View style={tw`flex-1 flex-col items-end`}>
             <Text style={tw`text-slate-100 font-black text-xs mb-1`}>
               {eventData?.teamB?.name || "B"}
@@ -557,6 +570,7 @@ export default function GameScreenMobile() {
           </View>
         </View>
 
+        {/* Fila central: cancha + acciones */}
         <View style={tw`flex-row p-2`}>
           <View style={tw`w-1/3 h-60 bg-slate-800/50 rounded-lg p-1`}>
             <View style={tw`flex-1 flex-row mx-1`}>
@@ -621,6 +635,7 @@ export default function GameScreenMobile() {
             )}
           </View>
 
+          {/* Acciones */}
           <View style={tw`flex-1 ml-2`}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={tw`flex-row gap-1`}>
@@ -922,6 +937,7 @@ export default function GameScreenMobile() {
           </View>
         </View>
 
+        {/* Ticket del rally */}
         <View
           style={tw`bg-slate-950 p-2 mx-2 rounded-lg mt-2 flex-row items-center`}
         >
@@ -952,6 +968,7 @@ export default function GameScreenMobile() {
           )}
         </View>
 
+        {/* Estadísticas */}
         <View style={tw`mt-4 mx-2`}>
           <TouchableOpacity
             onPress={() => setIsStatsOpen(!isStatsOpen)}
@@ -1035,6 +1052,7 @@ export default function GameScreenMobile() {
         </View>
       </ScrollView>
 
+      {/* Footer */}
       <View
         style={tw`h-16 bg-slate-950 border-t border-slate-800 flex-row items-center justify-between px-4`}
       >
@@ -1137,6 +1155,26 @@ export default function GameScreenMobile() {
         </View>
       </View>
 
+      {/* Overlay del manual (ReferencePanel móvil) */}
+      {isManualOpen && (
+        <View
+          style={tw`absolute top-0 left-0 right-0 bottom-0 bg-slate-900/80 z-50 flex-row`}
+        >
+          <ReferencePanel
+            dark={true}
+            isOpen={isManualOpen}
+            setIsOpen={setIsManualOpen}
+            hoveredAction={selectedMobileAction}
+            isMobile={true}
+          />
+          <TouchableOpacity
+            style={tw`flex-1`}
+            onPress={() => setIsManualOpen(false)}
+          />
+        </View>
+      )}
+
+      {/* Popover de valores */}
       <Modal visible={valuePopover.visible} transparent animationType="fade">
         <TouchableOpacity
           style={tw`flex-1 justify-center items-center bg-black/50`}
@@ -1176,6 +1214,7 @@ export default function GameScreenMobile() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Modal de sustitución */}
       <Modal
         visible={!!showSubModal}
         transparent

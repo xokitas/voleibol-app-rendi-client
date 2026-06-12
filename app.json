@@ -22,7 +22,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.daniells.RENDI_1"
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +38,8 @@
         "expo-build-properties",
         {
           "android": {
-            "screenOrientation": "landscape"
+            "screenOrientation": "landscape",
+            "extraMavenRepos": ["https://www.jitpack.io"]
           }
         }
       ],
@@ -45,6 +47,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "81b25eff-5f27-4f44-b530-d8496d4e5480"
+      }
     }
   }
 }

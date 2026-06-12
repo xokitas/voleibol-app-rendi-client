@@ -3,11 +3,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-    useWindowDimensions,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import HeaderMenu from "../../../components/HeaderMenu";
@@ -18,8 +18,8 @@ import { useStats } from "../../../hooks/useStats";
 import tw from "../../../lib/tailwind";
 import { useMatchStore } from "../../../src/store/useMatchStore";
 import {
-    actionAllowedValues,
-    computeCategoriesAndRadar,
+  actionAllowedValues,
+  computeCategoriesAndRadar,
 } from "../../../utils/analytics";
 import { exportStatsToPDF } from "../../../utils/exportPDF";
 
@@ -114,7 +114,7 @@ export default function SelectedStatsScreen() {
       generalStats.general.efficiency,
       categoriesMap,
       parsedMatchIds,
-      selectedMatches, // <-- array de partidos completo
+      selectedMatches,
     );
   };
 
@@ -152,28 +152,40 @@ export default function SelectedStatsScreen() {
         <View key={match.id} style={tw`mb-2`}>
           <TouchableOpacity
             onPress={() => setExpandedMatchId(isExpanded ? null : match.id)}
-            style={tw`flex-row justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200`}
+            style={tw`flex-row justify-between items-center bg-slate-50 ${
+              isMobile ? "p-2" : "p-3"
+            } rounded-xl border border-slate-200`}
           >
             <View style={tw`flex-1`}>
-              <Text style={tw`font-bold text-[#003366] text-sm`}>
+              <Text
+                style={tw`font-bold text-[#003366] ${
+                  isMobile ? "text-xs" : "text-sm"
+                }`}
+              >
                 {match.config.tournament ||
                   match.config.denomination ||
                   "Partido"}
               </Text>
-              <Text style={tw`text-xs text-slate-500`}>
+              <Text
+                style={tw`text-slate-500 ${
+                  isMobile ? "text-[10px]" : "text-xs"
+                }`}
+              >
                 {match.config.teamA.name} vs {match.config.teamB.name} · Set{" "}
                 {match.score.currentSet}
               </Text>
             </View>
             <Ionicons
               name={isExpanded ? "chevron-up" : "chevron-down"}
-              size={18}
+              size={isMobile ? 14 : 18}
               color="#003366"
             />
           </TouchableOpacity>
           {isExpanded && (
             <View
-              style={tw`bg-white p-3 rounded-xl border border-slate-200 mt-1`}
+              style={tw`bg-white ${
+                isMobile ? "p-2" : "p-3"
+              } rounded-xl border border-slate-200 mt-1`}
             >
               {match.history.map((set) => {
                 const setKey = `${match.id}-set-${set.set}`;
@@ -183,15 +195,23 @@ export default function SelectedStatsScreen() {
                   <View key={set.set} style={tw`mb-3`}>
                     <TouchableOpacity
                       onPress={() => toggleSetExpanded(match.id, set.set)}
-                      style={tw`flex-row justify-between items-center bg-slate-100 p-2 rounded-lg`}
+                      style={tw`flex-row justify-between items-center bg-slate-100 ${
+                        isMobile ? "p-1.5" : "p-2"
+                      } rounded-lg`}
                     >
                       <View style={tw`flex-row items-center gap-2`}>
-                        <Text style={tw`text-sm font-bold text-[#003366]`}>
+                        <Text
+                          style={tw`${
+                            isMobile ? "text-xs" : "text-sm"
+                          } font-bold text-[#003366]`}
+                        >
                           Set {set.set}
                         </Text>
                         {winner && (
                           <Text
-                            style={tw`text-xs font-bold ${winner === "A" ? "text-blue-600" : "text-red-600"}`}
+                            style={tw`${
+                              isMobile ? "text-[10px]" : "text-xs"
+                            } font-bold ${winner === "A" ? "text-blue-600" : "text-red-600"}`}
                           >
                             {winner === "A" ? "Gana A" : "Gana B"}
                           </Text>
@@ -199,14 +219,18 @@ export default function SelectedStatsScreen() {
                       </View>
                       <Ionicons
                         name={isSetExpanded ? "chevron-up" : "chevron-down"}
-                        size={16}
+                        size={isMobile ? 12 : 16}
                         color="#003366"
                       />
                     </TouchableOpacity>
                     {isSetExpanded && (
                       <View style={tw`mt-2`}>
                         {set.rallies.length === 0 ? (
-                          <Text style={tw`text-xs text-slate-400`}>
+                          <Text
+                            style={tw`${
+                              isMobile ? "text-[10px]" : "text-xs"
+                            } text-slate-400`}
+                          >
                             Sin rallies registrados
                           </Text>
                         ) : (
@@ -219,15 +243,23 @@ export default function SelectedStatsScreen() {
                                   onPress={() =>
                                     toggleRallyExpanded(match.id, set.set, idx)
                                   }
-                                  style={tw`flex-row justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100`}
+                                  style={tw`flex-row justify-between items-center bg-slate-50 ${
+                                    isMobile ? "p-1.5" : "p-2"
+                                  } rounded-lg border border-slate-100`}
                                 >
                                   <View style={tw`flex-row items-center gap-2`}>
                                     <Text
-                                      style={tw`text-xs font-bold text-slate-600`}
+                                      style={tw`${
+                                        isMobile ? "text-[10px]" : "text-xs"
+                                      } font-bold text-slate-600`}
                                     >
                                       Rally {idx + 1}
                                     </Text>
-                                    <Text style={tw`text-xs text-slate-500`}>
+                                    <Text
+                                      style={tw`${
+                                        isMobile ? "text-[10px]" : "text-xs"
+                                      } text-slate-500`}
+                                    >
                                       {rally.scoreAtTheTime.A}-
                                       {rally.scoreAtTheTime.B}
                                     </Text>
@@ -238,7 +270,7 @@ export default function SelectedStatsScreen() {
                                         ? "chevron-up"
                                         : "chevron-down"
                                     }
-                                    size={14}
+                                    size={isMobile ? 10 : 14}
                                     color="#94a3b8"
                                   />
                                 </TouchableOpacity>
@@ -256,7 +288,13 @@ export default function SelectedStatsScreen() {
                                       return (
                                         <Text
                                           key={aIdx}
-                                          style={tw`text-xs py-0.5 px-1 rounded ${isHighlighted ? "bg-blue-100 text-blue-900 font-bold" : "text-slate-700"}`}
+                                          style={tw`${
+                                            isMobile ? "text-[10px]" : "text-xs"
+                                          } py-0.5 px-1 rounded ${
+                                            isHighlighted
+                                              ? "bg-blue-100 text-blue-900 font-bold"
+                                              : "text-slate-700"
+                                          }`}
                                         >
                                           {action.playerId} → {action.category}/
                                           {action.subAction}{" "}
@@ -295,16 +333,26 @@ export default function SelectedStatsScreen() {
         showQuickNav={false}
         compact={isMobile}
       />
-      <ScrollView contentContainerStyle={tw`p-4 pb-10`}>
-        <Text style={tw`text-xl font-black text-[#003366] mb-4`}>
+      <ScrollView
+        contentContainerStyle={tw`${isMobile ? "p-2 pb-6" : "p-4 pb-10"}`}
+      >
+        <Text
+          style={tw`${isMobile ? "text-lg" : "text-xl"} font-black text-[#003366] mb-4`}
+        >
           {parsedFilters.playerName || parsedFilters.teamName || "Estadísticas"}
         </Text>
-        <Text style={tw`text-sm text-slate-500 mb-2`}>
+        <Text
+          style={tw`${isMobile ? "text-xs" : "text-sm"} text-slate-500 mb-2`}
+        >
           {selectedMatches.length} partidos seleccionados
         </Text>
 
-        <View style={tw`bg-blue-50 p-3 rounded-xl mb-4`}>
-          <Text style={tw`text-base font-bold text-blue-900`}>
+        <View
+          style={tw`bg-blue-50 ${isMobile ? "p-2" : "p-3"} rounded-xl mb-4`}
+        >
+          <Text
+            style={tw`${isMobile ? "text-sm" : "text-base"} font-bold text-blue-900`}
+          >
             {generalStats.general.totalActions} acciones |{" "}
             {generalStats.general.errors} errores |{" "}
             {generalStats.general.efficiency}% efectividad
@@ -313,18 +361,22 @@ export default function SelectedStatsScreen() {
 
         {aggregatedActions.length > 0 && (
           <View
-            style={tw`bg-white border border-slate-100 rounded-2xl p-2 shadow-sm mb-4`}
+            style={tw`bg-white border border-slate-100 rounded-2xl ${
+              isMobile ? "p-1" : "p-2"
+            } shadow-sm mb-4`}
           >
             <StatsPanel
               radarData={radarData}
               categories={categoriesMap}
               color="#3b82f6"
-              radarSize={isMobile ? 160 : 220}
+              radarSize={isMobile ? 140 : 220}
             />
           </View>
         )}
 
-        <Text style={tw`text-lg font-bold text-[#003366] mb-2`}>
+        <Text
+          style={tw`${isMobile ? "text-base" : "text-lg"} font-bold text-[#003366] mb-2`}
+        >
           Partidos incluidos
         </Text>
         {renderMatchList()}
@@ -332,10 +384,20 @@ export default function SelectedStatsScreen() {
         <View style={tw`flex-row justify-end gap-3 mt-6`}>
           <TouchableOpacity
             onPress={handleExportPDF}
-            style={tw`flex-row items-center justify-center bg-red-600 py-3 px-5 rounded-xl`}
+            style={tw`flex-row items-center justify-center bg-red-600 ${
+              isMobile ? "py-2 px-4" : "py-3 px-5"
+            } rounded-xl`}
           >
-            <Ionicons name="document-outline" size={18} color="white" />
-            <Text style={tw`text-white font-bold ml-2`}>
+            <Ionicons
+              name="document-outline"
+              size={isMobile ? 14 : 18}
+              color="white"
+            />
+            <Text
+              style={tw`text-white font-bold ${
+                isMobile ? "text-xs ml-1" : "text-sm ml-2"
+              }`}
+            >
               Exportar a PDF (completo)
             </Text>
           </TouchableOpacity>
